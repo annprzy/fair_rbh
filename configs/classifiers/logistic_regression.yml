@@ -1,0 +1,8 @@
+default:
+  C: 1.0
+  penalty: 'l2'
+  solver: 'lbfgs'
+fine_tune:
+  C: [0.1, 1.0, 10.0, 100.0]
+  penalty: ['l1', 'l2']
+  solver: ['sag', 'newton-cg', 'lbfgs', 'liblinear', 'saga']

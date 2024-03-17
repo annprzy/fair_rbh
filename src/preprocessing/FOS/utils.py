@@ -25,7 +25,7 @@ class FOS_SMOTE:
                             (t == 'ordinal' or t == 'categorical') and f != dataset.target]
         cat_ord_features = [X_base.columns.get_loc(c) for c in cat_ord_features]
         metric = HEOM(pd.concat([X_base, X_neighbors], axis=0), cat_ord_features, nan_equivalents=[np.nan])
-        knn = NearestNeighbors(n_neighbors=self.k + 1, metric=metric.heom)
+        knn = NearestNeighbors(n_neighbors=self.k + 1, metric=metric.heom, n_jobs=-1)
         knn.fit(X_neighbors)
         for idx in X_base.index:
             b = X_base.loc[[idx], :]

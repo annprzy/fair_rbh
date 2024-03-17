@@ -4,6 +4,9 @@ from copy import deepcopy
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+
+from src.datasets.transforms import drop_features
 
 
 class Dataset:
@@ -12,7 +15,6 @@ class Dataset:
                  target_attr: str,
                  privileged_class: str | int,
                  feature_types: dict[str, str],
-                 standardized_features: dict,
                  privileged_groups: list[dict] = None,
                  unprivileged_groups: list[dict] = None,
                  group_type: str = '',
@@ -25,7 +27,6 @@ class Dataset:
         :param sensitive_attrs: list of sensitive attributes, column names
         :param target_attr: name of target attribute
         :param privileged_class: privileged class
-        :param standardized_features: features that need to be standardized and standarization function as value
         :param feature_types: types of features in the dataset (continuous, ordinal, categorical)
         :param privileged_groups: list of privileged groups
         :param unprivileged_groups: list of unprivileged groups
@@ -39,7 +40,6 @@ class Dataset:
         self.target = target_attr
         self.random_state = random_state
         self.mappings = mappings
-        self.standardized_features = standardized_features
         self.privileged_class = privileged_class
         self.unprivileged_class = pd.unique(self.data[self.data[self.target] != privileged_class][self.target])[0]
         self.feature_types = feature_types
@@ -61,9 +61,9 @@ class Dataset:
         self.train = self.train.reset_index(drop=True)
         self.test = self.test.reset_index(drop=True)
 
-        for key in standardized_features:
-            self.test = standardized_features[key](self.train, self.test, [key])
-            self.train = standardized_features[key](self.train, self.train, [key])
+        # for key in standardized_features:
+        #     self.test = standardized_features[key](self.train, self.test, [key])
+        #     self.train = standardized_features[key](self.train, self.train, [key])
 
         if privileged_groups is not None:
             self.privileged_groups = privileged_groups
@@ -144,19 +144,49 @@ class Dataset:
     def set_fair(self, df: pd.DataFrame):
         self.fair = df
 
-    def features_and_classes(self, data_type: str):
+    def features_and_classes(self, data_type: str, encoding: bool = False, enc_type: str = None):
         if data_type == "train":
             X = self.train.loc[:, self.train.columns != self.target]
+            if encoding:
+                X = self.perform_encoding(enc_type, X, X)
             y = self.train[self.target]
         elif data_type == "test":
             X = self.test.loc[:, self.test.columns != self.target]
+            if encoding:
+                X = self.perform_encoding(enc_type, self.train.loc[:, self.train.columns != self.target], X)
             y = self.test[self.target]
         elif data_type == "fair":
             X = self.fair.loc[:, self.fair.columns != self.target]
+            if encoding:
+                X = self.perform_encoding(enc_type, self.train.loc[:, self.train.columns != self.target], X)
             y = self.fair[self.target]
         else:
             raise ValueError(f"data type {data_type} not supported")
         return X, y
+
+    def perform_encoding(self, calc_type: str, df_to_fit: pd.DataFrame, df_to_transform: pd.DataFrame):
+        X = deepcopy(df_to_transform)
+        if calc_type == 'cont_ord_cat' or calc_type == 'cont_ord':
+            features_cont_ord = [f for f, v in self.feature_types.items() if
+                                 (v == 'continuous' or v == 'ordinal') and f != self.target]
+        elif calc_type == 'cont':
+            features_cont_ord = [f for f, v in self.feature_types.items() if
+                                 (v == 'continuous') and f != self.target]
+        else:
+            raise ValueError(f"Wrong type for performing encoding {calc_type}")
+        features_cat = [f for f, v in self.feature_types.items() if
+                        v == 'categorical' and len(self.data[f].unique()) > 2 and f != self.target]
+        scaler = StandardScaler()
+        scaler.fit(df_to_fit[features_cont_ord])
+        X.loc[:, features_cont_ord] = scaler.transform(df_to_transform[features_cont_ord])
+        if calc_type == 'cont_ord_cat':
+            encoder = OneHotEncoder(handle_unknown='ignore')
+            encoder.fit(self.data[features_cat])
+            features_names = encoder.get_feature_names_out(features_cat)
+            new_data = encoder.transform(df_to_transform[features_cat]).toarray()
+            X.loc[:, features_names] = new_data
+            X = drop_features(X, features_cat)
+        return X
 
     def get_config(self):
         cfg = {
@@ -170,10 +200,20 @@ class Dataset:
             'unprivileged_class': self.unprivileged_class,
             'seed': self.random_state,
             'test_size': self.test_size,
-            'standardized_features': list(self.standardized_features.keys()),
             'mapping': self.mappings
         }
         return cfg
+
+    def get_stats_data(self, data: pd.DataFrame):
+        num_majority = len(data[data[self.target] == self.majority])
+        num_minority = len(data) - num_majority
+        print(f'Num minority: {num_minority}')
+        print(f'Num majority: {num_majority}')
+        for group in [*self.privileged_groups, *self.unprivileged_groups]:
+            examples = len(query_dataset(group, data))
+            examples_min = len(query_dataset({**group, self.target: self.minority}, data))
+            examples_maj = len(query_dataset({**group, self.target: self.majority}, data))
+            print(f'Group: {group}, Len: {examples}, Minority: {examples_min}, Majority: {examples_maj}')
 
 
 def query_dataset(query: dict, df: pd.DataFrame) -> pd.DataFrame:

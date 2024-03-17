@@ -39,6 +39,7 @@ class GermanDataset(Dataset):
                                              'job'])
         data, mapping2 = discretizer(data, ['age'], {'age': {1: [0, 25], 0: [25, np.inf]}})
         mapping = {**mapping0, **mapping1, **mapping2}
+        data = data.drop_duplicates(keep='first')
         if binary:
             sensitive_attrs = ['sex']
         else:
@@ -72,10 +73,5 @@ class GermanDataset(Dataset):
             'class': CAT
         }
 
-        standardized_features = {
-            'months': standard_scaler,
-            'credit_amount': standard_scaler
-        }
-
-        super().__init__(data, sensitive_attrs, target_attr, privileged_class, feature_types, standardized_features,
+        super().__init__(data, sensitive_attrs, target_attr, privileged_class, feature_types,
                          mappings=mapping, group_type=group_type)

@@ -2,7 +2,7 @@ from copy import deepcopy
 
 import numpy as np
 import pandas as pd
-from distython import HEOM
+# from distython import HEOM
 from sklearn.neighbors import NearestNeighbors
 
 from src.datasets.dataset import Dataset, query_dataset
@@ -55,8 +55,9 @@ def compute_heterogeneous_cluster_same_target(dataset: Dataset, query: dict) -> 
 
 
 class HFOS_SMOTE:
-    def __init__(self, k: int, random_state: int):
+    def __init__(self, k: int, knn, random_state: int):
         self.k = k
+        self.knn = knn
         self.random_state = random_state
 
     def generate_example(self, instance: pd.DataFrame, neighbor: pd.DataFrame, dataset: Dataset):
@@ -74,6 +75,8 @@ class HFOS_SMOTE:
             x1_value = X_instance[feature].to_numpy()[0]
             x2_value = X_neighbor[feature].to_numpy()[0]
             new_value = x1_value + weight * (x2_value - x1_value) * distance_factor
+            if dataset.feature_types[feature] in ['categorical', 'ordinal']:
+                new_value = int(new_value)
             new_example[feature] = [new_value]
         new_example[dataset.target] = [y_instance.to_numpy()[0]]
         return pd.DataFrame(new_example)
@@ -81,10 +84,17 @@ class HFOS_SMOTE:
     def compute_nearest_neighbors(self, X_instance: pd.DataFrame, y_instance: pd.DataFrame, dataset: Dataset):
         np.random.seed(self.random_state)
         X_train, y_train = dataset.features_and_classes("train")
-        knn = NearestNeighbors(n_neighbors=self.k + 1, p=2)
-        knn.fit(X_train)
+        #
+        # knn = NearestNeighbors(n_neighbors=self.k + 1, p=2)
+        # knn.fit(X_train)
+        # cat_ord_features = [f for f, t in dataset.feature_types.items() if
+        #                     (t == 'ordinal' or t == 'categorical') and f != dataset.target]
+        # cat_ord_features = [X_train.columns.get_loc(c) for c in cat_ord_features]
+        # metric = HEOM(X_train, cat_ord_features, nan_equivalents=[np.nan])
+        # knn = NearestNeighbors(n_neighbors=self.k + 1, metric=metric.heom)
+        # knn.fit(X_train)
 
-        distances, nearest_neighbors = knn.kneighbors(X_instance)
+        distances, nearest_neighbors = self.knn.kneighbors(X_instance)
         distances = distances.flatten()
         nearest_neighbors = nearest_neighbors.flatten()
         distances = [d for n, d in zip(nearest_neighbors, distances) if X_train.index[n] != X_instance.index[0]]

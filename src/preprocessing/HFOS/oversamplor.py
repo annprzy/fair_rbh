@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from sklearn.neighbors import NearestNeighbors
 
 from src.datasets.dataset import Dataset
 from src.preprocessing.HFOS.utils import get_clusters, HFOS_SMOTE
@@ -7,6 +8,10 @@ from src.preprocessing.HFOS.utils import get_clusters, HFOS_SMOTE
 
 def run(dataset: Dataset, k: int = 5):
     np.random.seed(dataset.random_state)
+    X_train, y_train = dataset.features_and_classes("train")
+    knn = NearestNeighbors(n_neighbors=k + 1, p=2)
+    knn.fit(X_train)
+
     clusters = get_clusters(dataset)
     max_cluster_len = -np.inf
     for data in clusters:
@@ -14,7 +19,7 @@ def run(dataset: Dataset, k: int = 5):
         if len(c) > max_cluster_len:
             max_cluster_len = len(c)
     new_examples = []
-    hfos_smote = HFOS_SMOTE(k, dataset.random_state)
+    hfos_smote = HFOS_SMOTE(k, knn, dataset.random_state)
     for data in clusters:
         query, cluster, h_y, h_g = data
         if len(cluster) > 0:
@@ -29,6 +34,9 @@ def run(dataset: Dataset, k: int = 5):
                 else:
                     random_neighbor = h_g.sample(n=1, random_state=dataset.random_state)
                 new_example = hfos_smote.generate_example(random_instance, random_neighbor, dataset)
+                ## I dont know actually
+                # for f in dataset.sensitive:
+                #     new_example[f] = query[f]
                 new_examples.append(new_example)
     new_train = pd.concat([dataset.train, *new_examples])
     dataset.set_fair(new_train)

@@ -33,7 +33,6 @@ class BinaryFairnessMeasures:
         group_dict[self.dataset.target] = self.dataset.privileged_class
         return self._query_dataset(group_dict, test_set)
 
-
     def _false_positives(self, test_set: pd.DataFrame, group: dict):
         group_dict = deepcopy(group)
         group_dict['y_pred'] = self.dataset.privileged_class
@@ -127,6 +126,14 @@ class BinaryFairnessMeasures:
         di = self.disparate_impact(y_pred, test_set, priv, unpriv)
         adi = self.adapted_disparate_impact(y_pred, test_set, priv, unpriv)
         return sp, eo, ao, aao, di, adi
+
+    def compute_dict(self, y_pred, test_set: pd.DataFrame, priv: dict, unpriv: dict):
+        measures = self.calculate_all(y_pred, test_set, priv, unpriv)
+        result = {}
+        for m, n in zip(measures, ['statistical_parity', 'equal_opportunity', 'average_odds', 'average_absolute_odds',
+                                   'disparate_impact', 'adapted_disparate_impact']):
+            result[n] = m
+        return result
 
 
 class MultiFairnessMeasures:

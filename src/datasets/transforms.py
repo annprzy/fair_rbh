@@ -15,17 +15,19 @@ def attribute_mapper(data: pd.DataFrame, attrs: list[str], mapping: dict) -> tup
     return data, mapping
 
 
-def one_hot_encoder(data: pd.DataFrame, attrs: list[str]) -> tuple[pd.DataFrame, dict]:
+def one_hot_encoder(fit_data: pd.DataFrame, transform_data: pd.DataFrame, attrs: list[str]) -> tuple[pd.DataFrame, dict]:
     """encode the given attribute using one hot encoding
     :param data: dataframe
     :param attrs: list of names of columns to perform the encoding on
     :return: transformed data, empty dictionary
     """
     enc = OneHotEncoder()
-    enc.fit(data[attrs])
+    enc.fit(fit_data[attrs])
     features_names = enc.get_feature_names_out(attrs)
-    data.loc[:, features_names] = enc.transform(data[attrs])
-    return data, {}
+    new_features = enc.transform(transform_data[attrs])
+    new_data = transform_data[[c for c in transform_data.columns if c not in attrs]]
+    new_data[features_names] = new_features
+    return transform_data, {}
 
 
 def ordinal_encoder(data: pd.DataFrame, attrs: list[str]) -> tuple[pd.DataFrame, dict]:

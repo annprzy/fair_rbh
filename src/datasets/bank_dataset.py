@@ -2,7 +2,8 @@ import numpy as np
 import pandas as pd
 
 from src.datasets.dataset import Dataset
-from src.datasets.transforms import discretizer, attribute_mapper, ordinal_encoder, drop_features, standard_scaler
+from src.datasets.transforms import discretizer, attribute_mapper, ordinal_encoder, drop_features, standard_scaler, \
+    one_hot_encoder
 
 CONT = 'continuous'
 ORD = 'ordinal'
@@ -37,6 +38,7 @@ class BankDataset(Dataset):
         privileged_class = 1
 
         data = drop_features(data, ['day', 'month'])
+        data = data.drop_duplicates(keep='first')
 
         feature_types = {
             'age': CAT,
@@ -58,13 +60,5 @@ class BankDataset(Dataset):
             'class': CAT
         }
 
-        standardized_features = {
-            'balance': standard_scaler,
-            'duration': standard_scaler,
-            'campaign': standard_scaler,
-            'pdays': standard_scaler,
-            'previous': standard_scaler,
-        }
-
-        super().__init__(data, sensitive_attrs, target_attr, privileged_class, feature_types, standardized_features,
+        super().__init__(data, sensitive_attrs, target_attr, privileged_class, feature_types,
                          mappings=mapping, group_type=group_type)

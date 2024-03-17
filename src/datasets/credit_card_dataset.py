@@ -1,7 +1,7 @@
 import pandas as pd
 
 from src.datasets.dataset import Dataset
-from src.datasets.transforms import drop_features, attribute_mapper, standard_scaler
+from src.datasets.transforms import drop_features, attribute_mapper, standard_scaler, one_hot_encoder
 
 CONT = 'continuous'
 ORD = 'ordinal'
@@ -28,7 +28,7 @@ class CreditCardDataset(Dataset):
             'marital': {1: 1, 2: 0, 3: 0},  # binarize marital status - but maybe better to drop the features?
         })
         mapping = {**mapping0}
-
+        data = data.drop_duplicates(keep='first')
         if binary:
             sensitive_attrs = ['gender']
         else:
@@ -64,22 +64,5 @@ class CreditCardDataset(Dataset):
             'class': CAT
         }
 
-        standardized_features = {
-            'balance': standard_scaler,
-            'age': standard_scaler,
-            'bill_amount_apr': standard_scaler,
-            'bill_amount_may': standard_scaler,
-            'bill_amount_jun': standard_scaler,
-            'bill_amount_jul': standard_scaler,
-            'bill_amount_aug': standard_scaler,
-            'bill_amount_sep': standard_scaler,
-            'pay_amount_apr': standard_scaler,
-            'pay_amount_may': standard_scaler,
-            'pay_amount_jun': standard_scaler,
-            'pay_amount_jul': standard_scaler,
-            'pay_amount_aug': standard_scaler,
-            'pay_amount_sep': standard_scaler,
-        }
-
-        super().__init__(data, sensitive_attrs, target_attr, privileged_class, feature_types, standardized_features,
+        super().__init__(data, sensitive_attrs, target_attr, privileged_class, feature_types,
                          mappings=mapping, group_type=group_type)

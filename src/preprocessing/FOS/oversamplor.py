@@ -7,8 +7,8 @@ from src.preprocessing.FOS.utils import FOS_SMOTE
 
 
 def run(dataset: Dataset, k: int, oversampling_factor: float = 1.0) -> None:
-    priv = dataset.privileged_groups[0]
-    unpriv = dataset.unprivileged_groups[0]
+    priv = deepcopy(dataset.privileged_groups[0])
+    unpriv = deepcopy(dataset.unprivileged_groups[0])
 
     fos_smote = FOS_SMOTE(k, dataset.random_state)
 

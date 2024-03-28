@@ -7,7 +7,6 @@ from src.preprocessing.HFOS.utils import get_clusters, HFOS_SMOTE
 
 
 def run(dataset: Dataset, k: int = 5):
-    np.random.seed(dataset.random_state)
     X_train, y_train = dataset.features_and_classes("train")
     knn = NearestNeighbors(n_neighbors=k + 1, p=2)
     knn.fit(X_train)
@@ -19,7 +18,7 @@ def run(dataset: Dataset, k: int = 5):
         if len(c) > max_cluster_len:
             max_cluster_len = len(c)
     new_examples = []
-    hfos_smote = HFOS_SMOTE(k, knn, dataset.random_state)
+    hfos_smote = HFOS_SMOTE(k, knn)
     for data in clusters:
         query, cluster, h_y, h_g = data
         if len(cluster) > 0:
@@ -28,7 +27,7 @@ def run(dataset: Dataset, k: int = 5):
             p_y_g = len(h_y) / (len(h_y) + len(h_g))
             for idx, random_instance in random_instances.iterrows():
                 random_instance = random_instance.to_frame().T
-                which_cluster = np.random.choice([1, 0], size=1, p=[p_y_g, 1 - p_y_g])
+                which_cluster = dataset.random_state.choice([1, 0], size=1, p=[p_y_g, 1 - p_y_g])
                 if which_cluster == 1:
                     random_neighbor = h_y.sample(n=1, random_state=dataset.random_state)
                 else:

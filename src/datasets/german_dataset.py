@@ -9,7 +9,7 @@ CAT = 'categorical'
 
 
 class GermanDataset(Dataset):
-    def __init__(self, data_path: str = '../../data/german_credit/german.data', binary=False, group_type='fawos'):
+    def __init__(self, data_path: str = '../../data/german_credit/german.data', binary=False, group_type='fawos', random_state: int = 42):
         data = pd.read_csv(data_path,
                            header=None,
                            sep=' ',
@@ -74,4 +74,4 @@ class GermanDataset(Dataset):
         }
 
         super().__init__(data, sensitive_attrs, target_attr, privileged_class, feature_types,
-                         mappings=mapping, group_type=group_type)
+                         mappings=mapping, group_type=group_type, random_state=random_state)

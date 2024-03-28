@@ -11,7 +11,7 @@ CAT = 'categorical'
 
 
 class BankDataset(Dataset):
-    def __init__(self, data_path: str = '../../data/bank_marketing/bank-full.csv', binary=False, group_type='fawos'):
+    def __init__(self, data_path: str = '../../data/bank_marketing/bank-full.csv', binary=False, group_type='fawos', random_state: int = 42):
         data = pd.read_csv(data_path, sep=';')
         data.rename(columns={'y': 'class'}, inplace=True)
         data, mapping0 = discretizer(data, ['age'], {'age': {0: [0, 25], 1: [25, np.inf]}})
@@ -61,4 +61,4 @@ class BankDataset(Dataset):
         }
 
         super().__init__(data, sensitive_attrs, target_attr, privileged_class, feature_types,
-                         mappings=mapping, group_type=group_type)
+                         mappings=mapping, group_type=group_type, random_state=random_state)

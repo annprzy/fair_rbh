@@ -38,7 +38,8 @@ class Dataset:
         self.data = data
         self.sensitive = sensitive_attrs
         self.target = target_attr
-        self.random_state = random_state
+        self.random_state = np.random.default_rng(random_state)
+        self.random_state_init = random_state
         self.mappings = mappings
         self.privileged_class = privileged_class
         self.unprivileged_class = pd.unique(self.data[self.data[self.target] != privileged_class][self.target])[0]
@@ -56,7 +57,7 @@ class Dataset:
             self.train = data
         else:
             self.train, self.test = train_test_split(self.data, test_size=test_size,
-                                                     random_state=self.random_state)
+                                                     random_state=random_state)
 
         self.train = self.train.reset_index(drop=True)
         self.test = self.test.reset_index(drop=True)
@@ -198,22 +199,24 @@ class Dataset:
             'majority': self.majority,
             'privileged_class': self.privileged_class,
             'unprivileged_class': self.unprivileged_class,
-            'seed': self.random_state,
+            'seed': self.random_state_init,
             'test_size': self.test_size,
             'mapping': self.mappings
         }
         return cfg
 
-    def get_stats_data(self, data: pd.DataFrame):
+    def get_stats_data(self, data: pd.DataFrame) -> str:
         num_majority = len(data[data[self.target] == self.majority])
         num_minority = len(data) - num_majority
-        print(f'Num minority: {num_minority}')
-        print(f'Num majority: {num_majority}')
+        result = f''
+        result += f'Num minority: {num_minority}\n'
+        result += f'Num majority: {num_majority}\n'
         for group in [*self.privileged_groups, *self.unprivileged_groups]:
             examples = len(query_dataset(group, data))
             examples_min = len(query_dataset({**group, self.target: self.minority}, data))
             examples_maj = len(query_dataset({**group, self.target: self.majority}, data))
-            print(f'Group: {group}, Len: {examples}, Minority: {examples_min}, Majority: {examples_maj}')
+            result += f'Group: {group}, Len: {examples}, Minority: {examples_min}, Majority: {examples_maj}\n'
+        return result
 
 
 def query_dataset(query: dict, df: pd.DataFrame) -> pd.DataFrame:

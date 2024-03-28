@@ -55,34 +55,31 @@ def compute_heterogeneous_cluster_same_target(dataset: Dataset, query: dict) -> 
 
 
 class HFOS_SMOTE:
-    def __init__(self, k: int, knn, random_state: int):
+    def __init__(self, k: int, knn):
         self.k = k
         self.knn = knn
-        self.random_state = random_state
 
     def generate_example(self, instance: pd.DataFrame, neighbor: pd.DataFrame, dataset: Dataset):
-        np.random.seed(self.random_state)
         new_example = {}
         X_instance, y_instance = instance.loc[:, instance.columns != dataset.target], instance[dataset.target]
         X_neighbor, y_neighbor = neighbor.loc[:, neighbor.columns != dataset.target], neighbor[dataset.target]
 
         knns, dist = self.compute_nearest_neighbors(X_instance, y_instance, dataset)
         weight = self.compute_weight(knns, y_instance)
-        weight = np.random.uniform(low=0, high=weight, size=1)[0]
+        weight = dataset.random_state.uniform(low=0, high=weight, size=1)[0]
         distance_factor = self.compute_distance_factor(X_instance, X_neighbor, dist)
         for feature in X_instance.columns:
             # for now only continuous data are handled (from equation described in the paper)
             x1_value = X_instance[feature].to_numpy()[0]
             x2_value = X_neighbor[feature].to_numpy()[0]
             new_value = x1_value + weight * (x2_value - x1_value) * distance_factor
-            if dataset.feature_types[feature] in ['categorical', 'ordinal']:
-                new_value = int(new_value)
+            # if dataset.feature_types[feature] in ['categorical', 'ordinal']:
+            #     new_value = int(new_value)
             new_example[feature] = [new_value]
         new_example[dataset.target] = [y_instance.to_numpy()[0]]
         return pd.DataFrame(new_example)
 
     def compute_nearest_neighbors(self, X_instance: pd.DataFrame, y_instance: pd.DataFrame, dataset: Dataset):
-        np.random.seed(self.random_state)
         X_train, y_train = dataset.features_and_classes("train")
         #
         # knn = NearestNeighbors(n_neighbors=self.k + 1, p=2)
@@ -108,6 +105,5 @@ class HFOS_SMOTE:
         return len([n for n in nearest_neighbors if n == y]) / self.k
 
     def compute_distance_factor(self, X_instance, X_neighbor, distances):
-        np.random.seed(self.random_state)
         dist = np.linalg.norm(X_instance.to_numpy().flatten() - X_neighbor.to_numpy().flatten())
         return np.max(distances) / dist

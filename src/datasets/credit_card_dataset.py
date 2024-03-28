@@ -10,7 +10,7 @@ CAT = 'categorical'
 
 class CreditCardDataset(Dataset):
     def __init__(self, data_path: str = '../../data/credit_card_default/default_of_credit_card_clients.xls',
-                 binary=False, group_type='fawos'):
+                 binary=False, group_type='fawos', random_state: int = 42):
         data = pd.read_excel(data_path, header=None, names=['id', 'balance', 'gender', 'education', 'marital', 'age',
                                                             'pay_apr', 'pay_may', 'pay_jun', 'pay_jul', 'pay_aug',
                                                             'pay_sep',
@@ -65,4 +65,4 @@ class CreditCardDataset(Dataset):
         }
 
         super().__init__(data, sensitive_attrs, target_attr, privileged_class, feature_types,
-                         mappings=mapping, group_type=group_type)
+                         mappings=mapping, group_type=group_type, random_state=random_state)

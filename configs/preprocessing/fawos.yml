@@ -1,4 +1,4 @@
-safe_weight: 0.33
-borderline_weight: 0.33
-rare_weight: 0.33
+safe_weight: 0.0
+borderline_weight: 0.6
+rare_weight: 0.4
 oversampling_factor: 1.0

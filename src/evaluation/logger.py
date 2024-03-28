@@ -1,7 +1,9 @@
 import os
 
 import neptune
+import pandas as pd
 import yaml
+from neptune.types import File
 from neptune.utils import stringify_unsupported
 
 from src.datasets.dataset import Dataset
@@ -12,8 +14,11 @@ def init_neptune(cfg: dict):
     return run
 
 
-def log_results(run, results: dict, name: str):
-    run[name] = stringify_unsupported(results)
+def log_results(run, results: dict | pd.DataFrame, name: str):
+    if type(results) is not pd.DataFrame:
+        run[name] = stringify_unsupported(results)
+    else:
+        run[name].upload(File.as_html(results))
 
 
 def upload_files(run, path_to_files: dict, name: str):

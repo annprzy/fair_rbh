@@ -1,9 +1,12 @@
 import operator
 import random
+from copy import deepcopy
 
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import KFold
 
+from src.classification.classify import Classifier
 from src.datasets.dataset import Dataset
 from src.preprocessing.FAWOS import taxonomizator
 from src.preprocessing.FAWOS.utils import Taxonomy, DatapointsFromClassToOversample, DatapointsToOversample, \
@@ -28,8 +31,6 @@ def oversample(dataset: Dataset,
                rare_percentage: float,
                filename: str | None = None):
     df = dataset.train
-    random.seed(dataset.random_state)
-    np.random.seed(dataset.random_state)
 
     for datapoints_from_class_to_oversample in datapoints_from_class_to_oversample_list:
         datapoints_to_oversample_list = datapoints_from_class_to_oversample.datapoints_to_oversample_list
@@ -56,13 +57,15 @@ def oversample(dataset: Dataset,
         if datapoints_and_neighbours and random_weights:
             for i in range(datapoints_from_class_to_oversample.n_times_to_oversample):
                 # choose random
-                random_datapoint_and_neighbour = random.choices(datapoints_and_neighbours, random_weights)[0]
+                random_datapoint_and_neighbour = dataset.random_state.choice(np.arange(0, len(datapoints_and_neighbours)), p=np.array(random_weights)/np.sum(random_weights))
+                random_datapoint_and_neighbour = datapoints_and_neighbours[random_datapoint_and_neighbour]
                 random_datapoint = random_datapoint_and_neighbour.datapoint
                 neighbours = random_datapoint_and_neighbour.neighbours
-                random_neighbour = random.choice(neighbours)
+                random_neighbour = dataset.random_state.choice(np.arange(0, len(neighbours)))
+                random_neighbour = neighbours[random_neighbour]
 
                 new_synthetic_datapoint = create_synthetic_sample(dataset.feature_types, random_datapoint,
-                                                                  random_neighbour, neighbours)
+                                                                  random_neighbour, neighbours, dataset)
                 df = pd.concat([df, pd.DataFrame([new_synthetic_datapoint])])
 
     # save new dataset
@@ -77,7 +80,7 @@ def save_dataset(dataset: pd.DataFrame, filename: str):
     f.close()
 
 
-def create_synthetic_sample(features: dict, x1, x2, neighbours: list):
+def create_synthetic_sample(features: dict, x1, x2, neighbours: list, dataset: Dataset):
     synthetic_example = pd.Series()
 
     for feature in features.keys():
@@ -86,7 +89,7 @@ def create_synthetic_sample(features: dict, x1, x2, neighbours: list):
 
         if features[feature] == 'continuous':
             dif = x1_value - x2_value
-            gap = np.random.random()
+            gap = dataset.random_state.random()
             synthetic_example_value = x1_value - gap * dif
 
         elif features[feature] == 'ordinal':

@@ -20,7 +20,6 @@ class FOS_SMOTE:
         new_examples = []
         X_base, y_base = base.loc[:, base.columns != dataset.target], base[dataset.target]
         X_neighbors, y_neighbors = neighbors.loc[:, neighbors.columns != dataset.target], neighbors[dataset.target]
-        np.random.seed(self.random_state)
         cat_ord_features = [f for f, t in dataset.feature_types.items() if
                             (t == 'ordinal' or t == 'categorical') and f != dataset.target]
         cat_ord_features = [X_base.columns.get_loc(c) for c in cat_ord_features]
@@ -48,12 +47,11 @@ class FOS_SMOTE:
         :param neighbors: all set of potential neighbors
         :param dataset: the dataset structure
         :return: new synthetic example"""
-        np.random.seed(self.random_state)
         features_names = base.columns
         features = dataset.feature_types
         synthetic_example = {}
         nearest = neighbors.loc[nearest_neighbors, :]
-        random_neighbor = np.random.choice(nearest_neighbors, size=1)[0]
+        random_neighbor = dataset.random_state.choice(nearest_neighbors, size=1)[0]
         random_neighbor = neighbors.loc[[random_neighbor], :]
 
         for feature in features_names:
@@ -62,7 +60,7 @@ class FOS_SMOTE:
 
             if features[feature] == 'continuous':
                 dif = x1_value - x2_value
-                gap = np.random.random()
+                gap = dataset.random_state.random()
                 synthetic_example_value = x1_value - gap * dif
 
             elif features[feature] == 'ordinal':

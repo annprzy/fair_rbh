@@ -48,6 +48,9 @@ class GermanDataset(Dataset):
         target_attr = 'class'
         privileged_class = 1
 
+        data = data.drop_duplicates(keep='first')
+        data = data.drop_duplicates(subset=[c for c in data.columns if c != target_attr], keep='first')
+
         feature_types = {
             'account_status': ORD,
             'months': CONT,

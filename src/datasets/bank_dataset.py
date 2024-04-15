@@ -39,7 +39,7 @@ class BankDataset(Dataset):
 
         data = drop_features(data, ['day', 'month'])
         data = data.drop_duplicates(keep='first')
-
+        data = data.drop_duplicates(subset=[c for c in data.columns if c != target_attr], keep='first')
         feature_types = {
             'age': CAT,
             'job': CAT,

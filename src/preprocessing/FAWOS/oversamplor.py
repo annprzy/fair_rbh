@@ -36,6 +36,7 @@ def oversample(dataset: Dataset,
         datapoints_to_oversample_list = datapoints_from_class_to_oversample.datapoints_to_oversample_list
         random_weights = []
         datapoints_and_neighbours = []
+        taxonomies = []
         print("oversampling " + str(datapoints_from_class_to_oversample.classes) + " " +
               str(datapoints_from_class_to_oversample.n_times_to_oversample) + " times")
         for datapoints_to_oversample in datapoints_to_oversample_list:
@@ -57,8 +58,8 @@ def oversample(dataset: Dataset,
         if datapoints_and_neighbours and random_weights:
             for i in range(datapoints_from_class_to_oversample.n_times_to_oversample):
                 # choose random
-                random_datapoint_and_neighbour = dataset.random_state.choice(np.arange(0, len(datapoints_and_neighbours)), p=np.array(random_weights)/np.sum(random_weights))
-                random_datapoint_and_neighbour = datapoints_and_neighbours[random_datapoint_and_neighbour]
+                random_datapoint_and_neighbour_idx = dataset.random_state.choice(np.arange(0, len(datapoints_and_neighbours)), p=np.array(random_weights)/np.sum(random_weights))
+                random_datapoint_and_neighbour = datapoints_and_neighbours[random_datapoint_and_neighbour_idx]
                 random_datapoint = random_datapoint_and_neighbour.datapoint
                 neighbours = random_datapoint_and_neighbour.neighbours
                 random_neighbour = dataset.random_state.choice(np.arange(0, len(neighbours)))

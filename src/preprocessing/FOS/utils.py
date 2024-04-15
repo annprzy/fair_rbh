@@ -23,7 +23,8 @@ class FOS_SMOTE:
         cat_ord_features = [f for f, t in dataset.feature_types.items() if
                             (t == 'ordinal' or t == 'categorical') and f != dataset.target]
         cat_ord_features = [X_base.columns.get_loc(c) for c in cat_ord_features]
-        metric = HEOM(pd.concat([X_base, X_neighbors], axis=0), cat_ord_features, nan_equivalents=[np.nan])
+        X_base_instances = pd.concat([X_base, X_neighbors], axis=0)
+        metric = HEOM(X_base_instances, cat_ord_features, nan_equivalents=[np.nan])
         knn = NearestNeighbors(n_neighbors=self.k + 1, metric=metric.heom, n_jobs=-1)
         knn.fit(X_neighbors)
         for idx in X_base.index:
@@ -31,7 +32,7 @@ class FOS_SMOTE:
             distances, nearest_neighbors = knn.kneighbors(b)
             distances = distances.flatten()
             nearest_neighbors = nearest_neighbors.flatten()
-            nearest_neighbors = np.array([X_neighbors.index[n] for n, d in zip(nearest_neighbors, distances) if d > 0])
+            nearest_neighbors = np.array([X_base_instances.index[n] for n, d in zip(nearest_neighbors, distances) if d > 0])
             assert len(nearest_neighbors) == self.k, (distances, b)
             new_example = self._generate_synthetic_example(b, X_neighbors, nearest_neighbors, dataset)
             new_example[dataset.target] = target_value

@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+from distython import HEOM
+from sklearn.neighbors import NearestNeighbors
 
 from src.datasets.dataset import Dataset
 from src.preprocessing.FAWOS.utils import TaxonomyAndNeighbours, Taxonomy
@@ -8,20 +10,28 @@ from src.preprocessing.FAWOS.utils import TaxonomyAndNeighbours, Taxonomy
 def create_taxonomies_and_neighbours(dataset: Dataset,
                                      taxonomies_filename: str | None = None):
     X_train, y_train = dataset.features_and_classes("train")
-    distances = heomDist(dataset, X_train)
-    taxonomies_and_neighbours = determine_taxonomies_and_neighbours(distances, dataset, X_train, y_train)
+    # distances = heomDist(dataset, X_train)
+
+    cat_ord_features = [f for f, t in dataset.feature_types.items() if
+                        (t == 'ordinal' or t == 'categorical') and f != dataset.target]
+    cat_ord_features = [X_train.columns.get_loc(c) for c in cat_ord_features]
+    metric = HEOM(X_train, cat_ord_features, nan_equivalents=[np.nan])
+    knn = NearestNeighbors(n_neighbors=6, metric=metric.heom, n_jobs=-1)
+    knn.fit(X_train)
+
+    taxonomies_and_neighbours = determine_taxonomies_and_neighbours(knn, dataset, X_train, y_train)
     if taxonomies_filename is not None:
         TaxonomyAndNeighbours.save_taxonomies_and_neighbours(taxonomies_filename, taxonomies_and_neighbours)
     else:
         return taxonomies_and_neighbours
 
 
-def determine_taxonomies_and_neighbours(distances,
+def determine_taxonomies_and_neighbours(knn,
                                         dataset: Dataset,
                                         X_train: pd.DataFrame,
                                         y_train: pd.Series) -> list[TaxonomyAndNeighbours]:
     taxonomies_and_neighbours = []
-    neighbours_list = calculate_neighbours(distances, dataset, X_train, y_train)
+    neighbours_list = calculate_neighbours(knn, dataset, X_train, y_train)
 
     for i in range(len(neighbours_list)):
         count = len(neighbours_list[i])
@@ -53,16 +63,22 @@ def determine_taxonomies_and_neighbours(distances,
     return taxonomies_and_neighbours
 
 
-def calculate_neighbours(distances, dataset: Dataset, X_train: pd.DataFrame, y_train: pd.Series):
+def calculate_neighbours(knn, dataset: Dataset, X_train: pd.DataFrame, y_train: pd.Series):
     neighbours_list = []
 
-    for i in range(len(distances)):
-        datapoint = X_train.iloc[i]
-        target_datapoint = y_train.iloc[i]
-        neighbours_indexes = np.array(distances[i]).argsort()[:5]
+    distances, nearest_neighbors = knn.kneighbors(X_train)
+
+    for idx, distance, nns in zip(range(len(X_train)), distances, nearest_neighbors):
+        datapoint = X_train.iloc[idx, :]
+        target_datapoint = y_train.iloc[idx]
+        distance = distance.flatten()
+        nns = nns.flatten()
+        nns = np.array([X_train.index[n] for n, d in zip(nns, distance) if d > 0])
+        assert len(nns) == 5, (distances, datapoint)
+
         neighbours = []
 
-        for neighbour in neighbours_indexes:
+        for neighbour in nns:
             neighbour_datapoint = X_train.iloc[neighbour, :]
             target_neighbour_datapoint = y_train.iloc[neighbour]
 

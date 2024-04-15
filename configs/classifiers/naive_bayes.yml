@@ -1,0 +1,4 @@
+default:
+  var_smoothing: 1e-9
+fine_tune:
+  var_smoothing: [1e-9]

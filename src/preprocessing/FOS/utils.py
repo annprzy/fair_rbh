@@ -54,13 +54,14 @@ class FOS_SMOTE:
         nearest = neighbors.loc[nearest_neighbors, :]
         random_neighbor = dataset.random_state.choice(nearest_neighbors, size=1)[0]
         random_neighbor = neighbors.loc[[random_neighbor], :]
-        gap = dataset.random_state.random()
+
         for feature in features_names:
             x1_value = base[feature].to_numpy()[0]
             x2_value = random_neighbor[feature].to_numpy()[0]
 
             if features[feature] == 'continuous':
                 dif = x1_value - x2_value
+                gap = dataset.random_state.random()
                 synthetic_example_value = x1_value - gap * dif
 
             elif features[feature] == 'ordinal':

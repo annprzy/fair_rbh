@@ -18,7 +18,7 @@ class CreditCardDataset(Dataset):
                                                             'bill_amount_jul', 'bill_amount_aug', 'bill_amount_sep',
                                                             'pay_amount_apr', 'pay_amount_may', 'pay_amount_jun',
                                                             'pay_amount_jul', 'pay_amount_aug', 'pay_amount_sep',
-                                                            'class'])
+                                                            'class'], na_values=['?'])
         data = data.drop([0, 1])
         data = data.reset_index(drop=True)
         data = drop_features(data, ['id'])
@@ -66,6 +66,8 @@ class CreditCardDataset(Dataset):
             'pay_amount_sep': CONT,
             'class': CAT
         }
+        
+        data.reset_index(drop=True, inplace=True)
 
         super().__init__(data, sensitive_attrs, target_attr, privileged_class, feature_types,
                          mappings=mapping, group_type=group_type, random_state=random_state)

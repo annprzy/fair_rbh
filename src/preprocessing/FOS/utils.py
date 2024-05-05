@@ -23,7 +23,7 @@ class FOS_SMOTE:
         cat_ord_features = [f for f, t in dataset.feature_types.items() if
                             (t == 'ordinal' or t == 'categorical') and f != dataset.target]
         cat_ord_features = [X_base.columns.get_loc(c) for c in cat_ord_features]
-        X_base_instances = pd.concat([X_base, X_neighbors], axis=0)
+        X_base_instances = pd.concat([X_neighbors, X_base], axis=0)
         metric = HEOM(X_base_instances, cat_ord_features, nan_equivalents=[np.nan])
         knn = NearestNeighbors(n_neighbors=self.k + 1, metric=metric.heom, n_jobs=-1)
         knn.fit(X_neighbors)
@@ -54,14 +54,13 @@ class FOS_SMOTE:
         nearest = neighbors.loc[nearest_neighbors, :]
         random_neighbor = dataset.random_state.choice(nearest_neighbors, size=1)[0]
         random_neighbor = neighbors.loc[[random_neighbor], :]
-
+        gap = dataset.random_state.random()
         for feature in features_names:
             x1_value = base[feature].to_numpy()[0]
             x2_value = random_neighbor[feature].to_numpy()[0]
 
             if features[feature] == 'continuous':
                 dif = x1_value - x2_value
-                gap = dataset.random_state.random()
                 synthetic_example_value = x1_value - gap * dif
 
             elif features[feature] == 'ordinal':

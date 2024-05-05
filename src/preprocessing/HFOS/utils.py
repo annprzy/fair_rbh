@@ -24,12 +24,14 @@ def get_clusters(dataset: Dataset) -> list:
         cluster = query_dataset(query, dataset.train)
         group_cluster = compute_heterogeneous_cluster_same_group(dataset, query)
         target_cluster = compute_heterogeneous_cluster_same_target(dataset, query)
-        clusters.append((query, cluster, group_cluster, target_cluster))
+        query[dataset.target] = dataset.privileged_class
+        clusters.append((deepcopy(query), cluster, group_cluster, target_cluster))
 
         query[dataset.target] = dataset.unprivileged_class
         cluster = query_dataset(query, dataset.train)
         group_cluster = compute_heterogeneous_cluster_same_group(dataset, query)
         target_cluster = compute_heterogeneous_cluster_same_target(dataset, query)
+        query[dataset.target] = dataset.unprivileged_class
         clusters.append((query, cluster, group_cluster, target_cluster))
 
     return clusters

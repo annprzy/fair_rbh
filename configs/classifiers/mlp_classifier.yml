@@ -1,0 +1,14 @@
+default:
+  activation: 'relu'
+  solver: 'adam'
+  learning_rate: 'constant'
+  learning_rate_init: 0.001
+  random_state: 42
+  early_stopping: True
+  validation_fraction: 0.1
+  n_iter_no_change: 10
+fine_tune:
+  activation: ['logistic', 'tanh', 'relu']
+  solver: ['sgd', 'adam']
+  learning_rate: ['constant', 'adaptive']
+  learning_rate_init: [0.0001, 0.0005, 0.001, 0.005, 0.01]

@@ -14,7 +14,8 @@ def run(dataset: Dataset, k: int = 5):
                         (t == 'ordinal' or t == 'categorical') and f != dataset.target]
     cat_ord_features = [X_train.columns.get_loc(c) for c in cat_ord_features]
     metric = HEOM(X_train, cat_ord_features, nan_equivalents=[np.nan])
-    knn = NearestNeighbors(n_neighbors=k + 1, metric=metric.heom)
+    knn = NearestNeighbors(n_neighbors=k + 1, metric=metric.heom, n_jobs=-1)
+    #knn = NearestNeighbors(n_neighbors=k + 1, n_jobs=-1)
     knn.fit(X_train)
 
     clusters = get_clusters(dataset)
@@ -30,7 +31,7 @@ def run(dataset: Dataset, k: int = 5):
         if len(cluster) > 0:
             to_generate = max_cluster_len - len(cluster)
             random_instances = cluster.sample(n=to_generate, replace=True, random_state=dataset.random_state)
-            p_y_g = 1 - len(h_y) / (len(h_y) + len(h_g))
+            p_y_g = len(h_y) / (len(h_y) + len(h_g))
             for idx, random_instance in random_instances.iterrows():
                 random_instance = random_instance.to_frame().T
                 which_cluster = dataset.random_state.choice([1, 0], size=1, p=[p_y_g, 1 - p_y_g])

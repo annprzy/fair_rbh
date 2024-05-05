@@ -79,12 +79,13 @@ class HFOS_SMOTE:
         return np.max(distances) / dist
 
     def compute_random_neighbor(self, X_instance, X_cluster, dataset):
-        X_cluster_instance = pd.concat([X_instance, X_cluster], axis=0)
+        X_cluster_instance = pd.concat([X_cluster, X_instance], axis=0)
         cat_ord_features = [f for f, t in dataset.feature_types.items() if
                             (t == 'ordinal' or t == 'categorical') and f != dataset.target]
         cat_ord_features = [X_cluster_instance.columns.get_loc(c) for c in cat_ord_features]
         metric = HEOM(X_cluster_instance, cat_ord_features, nan_equivalents=[np.nan])
-        knn = NearestNeighbors(n_neighbors=self.k + 1, metric=metric.heom)
+        # knn = NearestNeighbors(n_neighbors=self.k + 1, metric=metric.heom, n_jobs=-1)
+        knn = NearestNeighbors(n_neighbors=self.k + 1, n_jobs=-1)
         knn.fit(X_cluster_instance)
 
         distances, nearest_neighbors = knn.kneighbors(X_instance)

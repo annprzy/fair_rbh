@@ -60,9 +60,12 @@ class BinaryFairnessMeasures:
 
         priv_tp, priv_tn, priv_fn, priv_fp = self._confusion_matrix(test_set, priv)
         unpriv_tp, unpriv_tn, unpriv_fn, unpriv_fp = self._confusion_matrix(test_set, unpriv)
-        eo_priv = priv_fn / (priv_fn + priv_tp)
-        eo_unpriv = unpriv_fn / (unpriv_fn + unpriv_tp)
-        eo = eo_priv - eo_unpriv
+        try:
+            eo_priv = priv_fn / (priv_fn + priv_tp)
+            eo_unpriv = unpriv_fn / (unpriv_fn + unpriv_tp)
+            eo = eo_priv - eo_unpriv
+        except ZeroDivisionError:
+            eo = np.inf
         return eo
 
     def average_odds(self, y_pred, test: pd.DataFrame, priv: dict, unpriv: dict) -> float:
@@ -71,16 +74,18 @@ class BinaryFairnessMeasures:
 
         priv_tp, priv_tn, priv_fn, priv_fp = self._confusion_matrix(test_set, priv)
         unpriv_tp, unpriv_tn, unpriv_fn, unpriv_fp = self._confusion_matrix(test_set, unpriv)
+        try:
+            x1_priv = priv_fp / (priv_fp + priv_tn)
+            x1_unpriv = unpriv_fp / (unpriv_fp + unpriv_tn)
+            x1 = x1_priv - x1_unpriv
 
-        x1_priv = priv_fp / (priv_fp + priv_tn)
-        x1_unpriv = unpriv_fp / (unpriv_fp + unpriv_tn)
-        x1 = x1_priv - x1_unpriv
+            x2_priv = priv_tp / (priv_tp + priv_fn)
+            x2_unpriv = unpriv_tp / (unpriv_tp + unpriv_fn)
+            x2 = x2_priv - x2_unpriv
 
-        x2_priv = priv_tp / (priv_tp + priv_fn)
-        x2_unpriv = unpriv_tp / (unpriv_tp + unpriv_fn)
-        x2 = x2_priv - x2_unpriv
-
-        ao = 0.5 * x1 + 0.5 * x2
+            ao = 0.5 * x1 + 0.5 * x2
+        except ZeroDivisionError:
+            ao = np.inf
         return ao
 
     def average_absolute_odds(self, y_pred, test: pd.DataFrame, priv: dict, unpriv: dict) -> float:
@@ -89,16 +94,18 @@ class BinaryFairnessMeasures:
 
         priv_tp, priv_tn, priv_fn, priv_fp = self._confusion_matrix(test_set, priv)
         unpriv_tp, unpriv_tn, unpriv_fn, unpriv_fp = self._confusion_matrix(test_set, unpriv)
+        try: 
+            x1_priv = priv_fp / (priv_fp + priv_tn)
+            x1_unpriv = unpriv_fp / (unpriv_fp + unpriv_tn)
+            x1 = abs(x1_priv - x1_unpriv)
 
-        x1_priv = priv_fp / (priv_fp + priv_tn)
-        x1_unpriv = unpriv_fp / (unpriv_fp + unpriv_tn)
-        x1 = abs(x1_priv - x1_unpriv)
+            x2_priv = priv_tp / (priv_tp + priv_fn)
+            x2_unpriv = unpriv_tp / (unpriv_tp + unpriv_fn)
+            x2 = abs(x2_priv - x2_unpriv)
 
-        x2_priv = priv_tp / (priv_tp + priv_fn)
-        x2_unpriv = unpriv_tp / (unpriv_tp + unpriv_fn)
-        x2 = abs(x2_priv - x2_unpriv)
-
-        ao = 0.5 * x1 + 0.5 * x2
+            ao = 0.5 * x1 + 0.5 * x2
+        except ZeroDivisionError:
+            ao = np.inf
         return ao
 
     def disparate_impact(self, y_pred, test: pd.DataFrame, priv: dict, unpriv: dict) -> float:

@@ -32,6 +32,8 @@ class AdultDataset(Dataset):
 
         target_attr = 'class'
         privileged_class = 1
+        
+        #data = data.drop(columns=['workclass', 'marital', 'occupation', 'relationship', 'sex', 'native_country'])
 
         data = data.drop_duplicates(keep='first')
         data = data.drop_duplicates(subset=[c for c in data.columns if c != target_attr], keep='first')
@@ -52,6 +54,8 @@ class AdultDataset(Dataset):
             'native_country': CAT,
             'class': CAT
         }
+
+        data.reset_index(drop=True, inplace=True)
 
         super().__init__(data, sensitive_attrs, target_attr, privileged_class, feature_types,
                          mappings=mapping, group_type=group_type, random_state=random_state)

@@ -13,13 +13,18 @@ class HeartDataset(Dataset):
                  group_type='fawos', random_state: int = 42):
         data = pd.read_csv(data_path, header=None,
                            names=['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restcg', 'thalach', 'exang',
-                                  'oldpeak', 'slope', 'ca', 'thal', 'class'])
+                                  'oldpeak', 'slope', 'ca', 'thal', 'class'], na_values=['?'])
         data.dropna(inplace=True)
+        
+        data, mapping0 = attribute_mapper(data, ['class'], {'class': {0: 0, 1: 1, 2: 1, 3: 1, 4: 1}})
 
         sensitive_attrs = ['sex']
 
         target_attr = 'class'
         privileged_class = 0
+        
+        #data = data.drop(columns=['cp', 'fbs', 'restcg', 'exang', 'slope', 'thal'])
+        
         data = data.drop_duplicates(keep='first')
         data = data.drop_duplicates(subset=[c for c in data.columns if c != target_attr], keep='first')
 
@@ -39,6 +44,8 @@ class HeartDataset(Dataset):
             'thal': CAT,
             'class': CAT
         }
+        
+        data.reset_index(drop=True, inplace=True)
 
         super().__init__(data, sensitive_attrs, target_attr, privileged_class, feature_types,
-                         mappings={}, group_type=group_type, random_state=random_state)
+                         mappings=mapping0, group_type=group_type, random_state=random_state)

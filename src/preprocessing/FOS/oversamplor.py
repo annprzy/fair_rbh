@@ -13,11 +13,12 @@ def run(dataset: Dataset, k: int, oversampling_factor: float = 1.0) -> None:
     fos_smote = FOS_SMOTE(k, dataset.random_state)
 
     D_min = query_dataset({dataset.target: dataset.minority}, dataset.train)
+    D_maj = query_dataset({dataset.target: dataset.majority}, dataset.train)
 
     priv[dataset.target] = dataset.majority
     unpriv[dataset.target] = dataset.majority
     D_pr_maj = query_dataset(priv, dataset.train)
-    D_up_maj = query_dataset(unpriv, dataset.train)
+    D_up_maj = query_dataset(unpriv, dataset.train) 
 
     priv[dataset.target] = dataset.minority
     unpriv[dataset.target] = dataset.minority
@@ -29,25 +30,42 @@ def run(dataset: Dataset, k: int, oversampling_factor: float = 1.0) -> None:
     n_pr_min = len(D_pr_min)
     n_up_min = len(D_up_min)
 
-    s_pr = int((n_pr_maj - n_pr_min) * oversampling_factor)
-    s_up = int((n_up_maj - n_up_min) * oversampling_factor)
+    if n_pr_maj >= n_pr_min:
+        s_pr = int((n_pr_maj - n_pr_min) * oversampling_factor)
+        D_pr = D_pr_min
+        neighbors_pr = [D_pr, D_min]
+    else:
+        s_pr = int((n_pr_min - n_pr_maj) * oversampling_factor)
+        D_pr = D_pr_maj
+        neighbors_pr = [D_pr, D_maj]
+    if n_up_maj >= n_up_min:
+        s_up = int((n_up_maj - n_up_min) * oversampling_factor)
+        D_up = D_up_min
+        neighbors_up = [D_up, D_min]
+    else:
+        s_up = int((n_up_min - n_up_maj) * oversampling_factor)
+        D_up = D_up_maj
+        neighbors_up = [D_up, D_maj]
 
     if s_up < s_pr:
         n_samp1 = s_up
         n_samp2 = s_pr
-        D1 = D_up_min
-        D2 = D_pr_min
+        D1 = D_up
+        D2 = D_pr
+        neighbors1 = neighbors_up[0]
+        neighbors2 = neighbors_pr[1]
     else:
         n_samp1 = s_pr
         n_samp2 = s_up
-        D1 = D_pr_min
-        D2 = D_up_min
+        D1 = D_pr
+        D2 = D_up
+        neighbors1 = neighbors_pr[0]
+        neighbors2 = neighbors_up[1]
 
     if n_samp1 <= len(D1):
         base1 = D1.sample(n=n_samp1, random_state=dataset.random_state)
     else:
         base1 = D1.sample(n=n_samp1, random_state=dataset.random_state, replace=True).reset_index(drop=True)
-    neighbors1 = D1
 
     new_samples1 = fos_smote.generate_examples(base1, neighbors1, dataset, dataset.minority)
 
@@ -55,7 +73,6 @@ def run(dataset: Dataset, k: int, oversampling_factor: float = 1.0) -> None:
         base2 = D2.sample(n=n_samp2, random_state=dataset.random_state)
     else:
         base2 = D2.sample(n=n_samp2, random_state=dataset.random_state, replace=True).reset_index(drop=True)
-    neighbors2 = D_min
 
     new_samples2 = fos_smote.generate_examples(base2, neighbors2, dataset, dataset.minority)
 

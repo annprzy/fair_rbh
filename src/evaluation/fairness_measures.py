@@ -54,6 +54,17 @@ class BinaryFairnessMeasures:
         sp = sp_priv - sp_unpriv
         return sp
 
+    def accuracy_parity(self, y_pred, test:pd.DataFrame, priv:dict, unpriv:dict) -> float:
+        test_set = deepcopy(test)
+        test_set['y_pred'] = y_pred
+
+        priv_tp, priv_tn, priv_fn, priv_fp = self._confusion_matrix(test_set, priv)
+        unpriv_tp, unpriv_tn, unpriv_fn, unpriv_fp = self._confusion_matrix(test_set, unpriv)
+        acc_priv = (priv_tp + priv_tn) / (priv_tp + priv_tn + priv_fn + priv_fp)
+        acc_unpriv = (unpriv_tp + unpriv_tn) / (unpriv_tp + unpriv_tn + unpriv_fn + unpriv_fp)
+        acc = acc_priv - acc_unpriv
+        return acc
+
     def equal_opportunity(self, y_pred, test: pd.DataFrame, priv: dict, unpriv: dict) -> float:
         test_set = deepcopy(test)
         test_set['y_pred'] = y_pred
@@ -127,17 +138,18 @@ class BinaryFairnessMeasures:
 
     def calculate_all(self, y_pred, test_set: pd.DataFrame, priv: dict, unpriv: dict):
         sp = self.statistical_parity(y_pred, test_set, priv, unpriv)
+        acc = self.accuracy_parity(y_pred, test_set, priv, unpriv)
         eo = self.equal_opportunity(y_pred, test_set, priv, unpriv)
         ao = self.average_odds(y_pred, test_set, priv, unpriv)
         aao = self.average_absolute_odds(y_pred, test_set, priv, unpriv)
         di = self.disparate_impact(y_pred, test_set, priv, unpriv)
         adi = self.adapted_disparate_impact(y_pred, test_set, priv, unpriv)
-        return sp, eo, ao, aao, di, adi
+        return sp, acc, eo, ao, aao, di, adi
 
     def compute_dict(self, y_pred, test_set: pd.DataFrame, priv: dict, unpriv: dict):
         measures = self.calculate_all(y_pred, test_set, priv, unpriv)
         result = {}
-        for m, n in zip(measures, ['statistical_parity', 'equal_opportunity', 'average_odds', 'average_absolute_odds',
+        for m, n in zip(measures, ['statistical_parity', 'accuracy', 'equal_opportunity', 'average_odds', 'average_absolute_odds',
                                    'disparate_impact', 'adapted_disparate_impact']):
             result[n] = m
         return result
@@ -149,6 +161,7 @@ class MultiFairnessMeasures:
         self.binary_measures = BinaryFairnessMeasures(dataset)
         self.measures_dict = {
             'statistical_parity': self.binary_measures.statistical_parity,
+            'accuracy': self.binary_measures.accuracy_parity,
             'equal_opportunity': self.binary_measures.equal_opportunity,
             'average_odds': self.binary_measures.average_odds,
             'average_absolute_odds': self.binary_measures.average_absolute_odds,
@@ -169,7 +182,7 @@ class MultiFairnessMeasures:
         results_per_group = self.compute_per_group(measure, y_pred, test_set)
 
         if measure == 'all':
-            measures = ['statistical_parity', 'equal_opportunity', 'average_odds', 'average_absolute_odds',
+            measures = ['statistical_parity', 'accuracy', 'equal_opportunity', 'average_odds', 'average_absolute_odds',
                         'disparate_impact', 'adapted_disparate_impact', ]
         else:
             measures = [measure]

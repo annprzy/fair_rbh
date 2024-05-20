@@ -1,9 +1,6 @@
 import os
 from itertools import product
 
-import sys
-sys.path.insert(0, 'src')
-
 import numpy as np
 import pandas as pd
 import yaml
@@ -27,6 +24,10 @@ from src.preprocessing.FOS import oversamplor as FOS
 from src.preprocessing.FOS_original import oversamplor as FOS_org
 from src.preprocessing.HFOS import oversamplor as HFOS
 from src.preprocessing.HFOS_modified import oversamplor as HFOS_modified
+from src.preprocessing.hybrid_sampling import hybridsamplor as hybrid
+from src.preprocessing.FairSMOTE import oversamplor as FairSMOTE
+from src.preprocessing.fawos_hybrid import hybridsamplor as FAWOS_hybrid
+from src.preprocessing.subclusters import oversamplor as NEW
 
 
 def init_dataset(dataset_name, random_state, data_path='../data'):
@@ -34,10 +35,10 @@ def init_dataset(dataset_name, random_state, data_path='../data'):
         return GermanDataset(f'{data_path}/german_credit/german.data', binary=True, group_type='',
                              random_state=random_state)
     elif dataset_name == 'bank':
-        return BankDataset(f'{data_path}/bank_marketing/bank-full.csv', binary=True, group_type='',
+        return BankDataset(f'{data_path}/bank_marketing/bank.csv', binary=True, group_type='',
                            random_state=random_state)
     elif dataset_name == 'adult':
-        return AdultDataset(f'{data_path}/adult_census/adult.data', binary=True, group_type='',
+        return AdultDataset(f'{data_path}/adult_census/sampled_sex/natural.csv', binary=True, group_type='',
                             random_state=random_state)
     elif dataset_name == 'credit_card':
         return CreditCardDataset(f'{data_path}/credit_card/credit.data', binary=True, group_type='',
@@ -65,6 +66,22 @@ def run_oversampling(algorithm: str, dataset: Dataset, config_path='../configs')
         with open(f'{config_path}/preprocessing/hfos.yml') as f:
             hfos_cfg = yaml.safe_load(f)
         HFOS_modified.run(dataset, k=hfos_cfg['k'])
+    if algorithm == 'hybrid':
+        with open(f'{config_path}/preprocessing/hybrid.yml') as f:
+            hybrid_cfg = yaml.safe_load(f)
+        hybrid.run(dataset, eps=hybrid_cfg['eps'], relabel=hybrid_cfg['relabel'])
+    if algorithm == 'fair_smote':
+        with open(f'{config_path}/preprocessing/fair_smote.yml') as f:
+            fair_smote_cfg = yaml.safe_load(f)
+        FairSMOTE.run(dataset, cr=fair_smote_cfg['cr'], f=fair_smote_cfg['f'])
+    if algorithm == 'fawos_hybrid':
+        with open(f'{config_path}/preprocessing/fawos_hybrid.yml') as f:
+            fawos_hybrid_cfg = yaml.safe_load(f)
+        weights = {'rare': fawos_hybrid_cfg['rare'], 'borderline': fawos_hybrid_cfg['borderline'],
+                   'safe': fawos_hybrid_cfg['safe'], 'outlier': fawos_hybrid_cfg['outlier']}
+        FAWOS_hybrid.run(dataset, weights, fawos_hybrid_cfg['max_undersampling_frac'])
+    if algorithm == 'new_thing':
+        NEW.run(dataset, n_clusters=4)
     return dataset
 
 
@@ -92,7 +109,7 @@ def experiment(dataset_name: str, algorithm: str, models: list[str], iteration: 
         dataset.test = dataset_train.iloc[test_set].reset_index(drop=True)
 
     dataset = run_oversampling(algorithm, dataset, config_path=config_path)
-    
+
     for model_name in models:
         print(
             f'{algorithm}, {dataset_name}, {model_name}, {iteration} \nPrivileged: {dataset.privileged_groups} \n{dataset.train.shape}, {dataset.fair.shape} \nStats train: {dataset.get_stats_data(dataset.train)}Stats fair: {dataset.get_stats_data(dataset.fair)}')
@@ -115,8 +132,8 @@ def experiment(dataset_name: str, algorithm: str, models: list[str], iteration: 
 
         model.train(dataset=dataset, data='fair', enc_type=enc_type)
         perf_fair_small, fairness_fair_small = model.predict_and_evaluate(dataset=dataset,
-                                                                        fairness_type='binary',
-                                                                        enc_type=enc_type)
+                                                                          fairness_type='binary',
+                                                                          enc_type=enc_type)
 
         perf_train_small['data'] = f'train_{enc_type}'
         fairness_train_small['data'] = f'train_{enc_type}'
@@ -125,7 +142,8 @@ def experiment(dataset_name: str, algorithm: str, models: list[str], iteration: 
         perf = pd.concat(
             [pd.DataFrame(perf_train_small, index=[iteration]), pd.DataFrame(perf_fair_small, index=[iteration])])
         fairness = pd.concat(
-            [pd.DataFrame(fairness_train_small, index=[iteration]), pd.DataFrame(fairness_fair_small, index=[iteration])])
+            [pd.DataFrame(fairness_train_small, index=[iteration]),
+             pd.DataFrame(fairness_fair_small, index=[iteration])])
 
         perf.to_csv(f'{results_path}/{algorithm}_{dataset_name}_{model_name}/{date}/performance_{iteration}.csv',
                     index=False)
@@ -134,19 +152,19 @@ def experiment(dataset_name: str, algorithm: str, models: list[str], iteration: 
 
 
 if __name__ == "__main__":
-    datasets = ['german', 'heart_disease', 'adult']  #, 'adult', 'bank']
-    algorithms = ['hfos_modified']#'hfos', 'fos']  #, 'fos', 'fawos']
+    datasets = ['german', 'heart_disease', 'bank', 'adult']  #, 'adult', 'bank']
+    algorithms = ['new_thing', 'hfos', 'fawos', 'fos', 'fair_smote', 'fawos_hybrid']  #'hfos', 'fos']  #, 'fos', 'fawos']
     models = ['logistic_regression', 'decision_tree', 'mlp', 'naive_bayes']
-    kfolds = 6
+    kfolds = 10
     encoding = 'cont_ord_cat'
-    date = '2023-04-26-cont'
-    config_path = 'configs'
-    results_path = 'results'
-    data_path = 'data'
+    date = '2024-05-20'
+    config_path = '../configs'
+    results_path = '../results'
+    data_path = '../data'
     iterations = [i for i in range(0, kfolds)]
     seeds = [42 + i for i in iterations]
     all_options = list(product(datasets, algorithms, iterations))
-    neptune = True
+    neptune = False
     with open(f'{config_path}/neptune.yml') as f:
         cfg = yaml.safe_load(f)
 

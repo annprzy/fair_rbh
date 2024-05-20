@@ -59,7 +59,8 @@ class BankDataset(Dataset):
             'poutcome': CAT,
             'class': CAT
         }
-        
+
+        data = data.astype(float)
         data.reset_index(drop=True, inplace=True)
 
         super().__init__(data, sensitive_attrs, target_attr, privileged_class, feature_types,

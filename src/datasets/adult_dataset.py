@@ -9,7 +9,7 @@ CAT = 'categorical'
 
 
 class AdultDataset(Dataset):
-    def __init__(self, data_path: str = '../../data/adult_census/adult.data', binary=False, group_type='fawos', random_state: int = 42):
+    def __init__(self, data_path: str = '../../data/adult_census/adult.data', binary=False, group_type='fawos', random_state: int = 42, attr_binary: str | None = None):
         data = pd.read_csv(data_path, header=None,
                            names=['age', 'workclass', 'fnlwgt', 'education', 'education_num', 'marital', 'occupation',
                                   'relationship', 'race', 'sex', 'capital_gain', 'capital_loss', 'hours_per_week',
@@ -25,8 +25,10 @@ class AdultDataset(Dataset):
         data, mapping1 = ordinal_encoder(data, ['workclass', 'marital', 'occupation', 'relationship', 'native_country'])
         mapping = {**mapping0, **mapping1}
         data = data.drop_duplicates(keep='first')
-        if binary:
-            sensitive_attrs = ['race']
+        if binary and attr_binary is None:
+            sensitive_attrs = ['sex']
+        elif binary and attr_binary is not None:
+            sensitive_attrs = [attr_binary]
         else:
             sensitive_attrs = ['race', 'sex']
 

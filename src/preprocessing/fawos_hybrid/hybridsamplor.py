@@ -17,8 +17,8 @@ def run(dataset: Dataset, weights: dict, max_undersampling_frac: float = 0.6):
     if int(max_subgroup_len * max_undersampling_frac) > mean_subgroup_size:
         mean_subgroup_size = int(max_subgroup_len * max_undersampling_frac)
 
-    instances, neighbors, categories = analyze_neighborhood(dataset)
-    sampling = HybridSamplor(instances, neighbors, categories, weights)
+    instances, neighbors, safe_neighbors, categories = analyze_neighborhood(dataset)
+    sampling = HybridSamplor(instances, neighbors, safe_neighbors, categories, weights)
 
     new_data = []
     for data in subgroups:

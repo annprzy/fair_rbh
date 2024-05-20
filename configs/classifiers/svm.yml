@@ -1,8 +1,0 @@
-default:
-  C: 1.0
-  gamma: 'scale'
-  kernel: 'rbf'
-fine_tune:
-  C: [0.1, 1.0, 10.0, 100.0]
-  gamma: ['scale', 'auto']
-  kernel: ['linear', 'rbf', 'sigmoid', 'poly']

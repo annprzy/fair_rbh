@@ -8,7 +8,7 @@ from sklearn.neighbors import NearestNeighbors
 from src.datasets.dataset import Dataset, query_dataset
 
 
-def get_clusters(dataset: Dataset) -> list:
+def get_clusters(dataset: Dataset, data: pd.DataFrame | None = None) -> list:
     """calculates clusters as described in the paper
     :param dataset: dataset
     :return: list of clusters contains:
@@ -18,17 +18,19 @@ def get_clusters(dataset: Dataset) -> list:
     the heterogeneous cluster (same target, different groups)
     """
     clusters = []
+    if data is None:
+        data = dataset.train
     for group in [*dataset.privileged_groups, *dataset.unprivileged_groups]:
         query = deepcopy(group)
         query[dataset.target] = dataset.privileged_class
-        cluster = query_dataset(query, dataset.train)
+        cluster = query_dataset(query, data)
         group_cluster = compute_heterogeneous_cluster_same_group(dataset, query)
         target_cluster = compute_heterogeneous_cluster_same_target(dataset, query)
         query[dataset.target] = dataset.privileged_class
         clusters.append((deepcopy(query), cluster, group_cluster, target_cluster))
 
         query[dataset.target] = dataset.unprivileged_class
-        cluster = query_dataset(query, dataset.train)
+        cluster = query_dataset(query, data)
         group_cluster = compute_heterogeneous_cluster_same_group(dataset, query)
         target_cluster = compute_heterogeneous_cluster_same_target(dataset, query)
         query[dataset.target] = dataset.unprivileged_class

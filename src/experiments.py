@@ -111,7 +111,7 @@ def experiment(dataset_name: str, algorithm: str, models: list[str], iteration: 
         dataset_train = dataset.data
         classes = dataset_train[dataset.target].to_list()
         group_class = dataset_train[dataset.sensitive].astype(int).astype(str).agg('-'.join, axis=1).to_list()
-        group_class = ['_'.join([g, c]) for g, c in zip(group_class, classes)]
+        group_class = ['_'.join([g, str(int(c))]) for g, c in zip(group_class, classes)]
         results = list(kf.split(dataset_train, group_class))[iteration]
         train_set, test_set = results
         dataset.train = dataset_train.iloc[train_set].reset_index(drop=True)

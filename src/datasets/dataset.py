@@ -145,12 +145,16 @@ class Dataset:
     def set_fair(self, df: pd.DataFrame):
         self.fair = df
 
-    def features_and_classes(self, data_type: str, encoding: bool = False, enc_type: str = None):
+    def features_and_classes(self, data_type: str, encoding: bool = False, enc_type: str = None, shuffle: bool = False):
         if data_type == "train":
-            X = self.train.loc[:, self.train.columns != self.target]
+            if shuffle:
+                train = self.train.sample(frac=1)
+            else:
+                train = self.train
+            X = train.loc[:, self.train.columns != self.target]
             if encoding:
                 X = self.perform_encoding(enc_type, X, X)
-            y = self.train[self.target]
+            y = train[self.target]
         elif data_type == "test":
             X = self.test.loc[:, self.test.columns != self.target]
             if encoding:

@@ -13,6 +13,7 @@ from src.classification.decision_tree import DecisionTree
 from src.classification.mlp_classifier import MLPClassifier
 from src.classification.naive_bayes import NaiveBayes
 from src.datasets.adult_dataset import AdultDataset
+from src.datasets.adult_sampled_dataset import AdultSampledDataset
 from src.datasets.bank_dataset import BankDataset
 from src.datasets.credit_card_dataset import CreditCardDataset
 from src.datasets.dataset import Dataset
@@ -40,7 +41,7 @@ def init_dataset(dataset_name, random_state, data_path='../data'):
         return BankDataset(f'{data_path}/bank_marketing/bank.csv', binary=True, group_type='',
                            random_state=random_state)
     elif dataset_name == 'adult':
-        return AdultDataset(f'{data_path}/adult_census/sampled_sex/natural.csv', binary=True, group_type='',
+        return AdultSampledDataset(f'{data_path}/adult_census/sampled_sex/natural.csv', binary=True, group_type='',
                             random_state=random_state)
     elif dataset_name == 'credit_card':
         return CreditCardDataset(f'{data_path}/credit_card/credit.data', binary=True, group_type='',

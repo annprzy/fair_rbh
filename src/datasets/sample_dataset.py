@@ -18,7 +18,7 @@ def sample_data(dataset: Dataset, number_of_examples: dict, save_path: str):
         new_data.append(sample)
     new_data = pd.concat(new_data)
     new_data = new_data.reset_index(drop=True)
-    new_data.to_csv(save_path, index=False)
+    new_data.to_csv(save_path, index=False, header=True)
 
 
 def get_number_samples(number_examples: int, dataset: Dataset, group_imbalance: dict | None = None,

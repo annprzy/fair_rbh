@@ -13,7 +13,7 @@ def create_taxonomies_and_neighbours(dataset: Dataset,
     # distances = heomDist(dataset, X_train)
 
     cat_ord_features = [f for f, t in dataset.feature_types.items() if
-                        (t == 'ordinal' or t == 'categorical') and f != dataset.target]
+                        (t == 'categorical') and f != dataset.target]
     cat_ord_features = [X_train.columns.get_loc(c) for c in cat_ord_features]
     metric = HEOM(X_train, cat_ord_features, nan_equivalents=[np.nan])
     knn = NearestNeighbors(n_neighbors=6, metric=metric.heom, n_jobs=-1)

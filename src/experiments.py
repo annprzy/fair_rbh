@@ -6,7 +6,7 @@ import pandas as pd
 import yaml
 from joblib import Parallel, delayed
 from neptune.utils import stringify_unsupported
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, StratifiedKFold
 
 from src.classification.logistic_regression import LogisticRegressor
 from src.classification.decision_tree import DecisionTree
@@ -28,6 +28,8 @@ from src.preprocessing.hybrid_sampling import hybridsamplor as hybrid
 from src.preprocessing.FairSMOTE import oversamplor as FairSMOTE
 from src.preprocessing.fawos_hybrid import hybridsamplor as FAWOS_hybrid
 from src.preprocessing.subclusters import oversamplor as NEW
+from src.preprocessing.RBO import oversamplor as RBO
+from src.preprocessing.fair_rbo import oversamplor as FairRBO
 
 
 def init_dataset(dataset_name, random_state, data_path='../data'):
@@ -82,6 +84,10 @@ def run_oversampling(algorithm: str, dataset: Dataset, config_path='../configs')
         FAWOS_hybrid.run(dataset, weights, fawos_hybrid_cfg['max_undersampling_frac'])
     if algorithm == 'new_thing':
         NEW.run(dataset, n_clusters=4)
+    if algorithm == 'rbo':
+        RBO.run(dataset)
+    if algorithm == 'fair_rbo':
+        FairRBO.run(dataset)
     return dataset
 
 
@@ -101,9 +107,12 @@ def experiment(dataset_name: str, algorithm: str, models: list[str], iteration: 
                config_path: str = '../configs', data_path: str = '../data'):
     dataset = init_dataset(dataset_name, random_seed, data_path=data_path)
     if kfolds is not None:
-        kf = KFold(n_splits=kfolds, shuffle=True, random_state=42)
+        kf = StratifiedKFold(n_splits=kfolds, shuffle=True, random_state=42)
         dataset_train = dataset.data
-        results = list(kf.split(dataset_train))[iteration]
+        classes = dataset_train[dataset.target].to_list()
+        group_class = dataset_train[dataset.sensitive].astype(int).astype(str).agg('-'.join, axis=1).to_list()
+        group_class = ['_'.join([g, c]) for g, c in zip(group_class, classes)]
+        results = list(kf.split(dataset_train, group_class))[iteration]
         train_set, test_set = results
         dataset.train = dataset_train.iloc[train_set].reset_index(drop=True)
         dataset.test = dataset_train.iloc[test_set].reset_index(drop=True)
@@ -152,8 +161,8 @@ def experiment(dataset_name: str, algorithm: str, models: list[str], iteration: 
 
 
 if __name__ == "__main__":
-    datasets = ['german', 'heart_disease', 'bank', 'adult']  #, 'adult', 'bank']
-    algorithms = ['new_thing', 'hfos', 'fawos', 'fos', 'fair_smote', 'fawos_hybrid']  #'hfos', 'fos']  #, 'fos', 'fawos']
+    datasets = ['heart_disease']  #, 'adult', 'bank']
+    algorithms = ['fair_rbo']  #'hfos', 'fos']  #, 'fos', 'fawos']
     models = ['logistic_regression', 'decision_tree', 'mlp', 'naive_bayes']
     kfolds = 10
     encoding = 'cont_ord_cat'

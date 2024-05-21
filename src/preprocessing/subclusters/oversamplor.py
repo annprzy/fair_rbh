@@ -18,7 +18,7 @@ def run(dataset: Dataset, n_clusters):
     minority_groups = minority_data[dataset.sensitive].astype(str).agg('-'.join, axis=1)
 
     cat_ord_features = [f for f, t in dataset.feature_types.items() if
-                        (t == 'ordinal' or t == 'categorical') and f not in [*dataset.sensitive, dataset.target]]
+                        (t == 'categorical') and f not in [dataset.target]]
     cat_ord_features = [X_train.columns.get_loc(c) for c in cat_ord_features]
     metric = HEOM(X_train, cat_ord_features, nan_equivalents=[np.nan])
 

@@ -12,7 +12,7 @@ def analyze_neighborhood(dataset: Dataset, k: int = 5) -> tuple:
     group_and_class = dataset.train[[*dataset.sensitive, dataset.target]].astype(str).agg('-'.join, axis=1)
     #X_train_no_group = dataset.train.loc[:, ~dataset.train.columns.isin([dataset.target, *dataset.sensitive])]
     cat_ord_features = [f for f in X_train.columns if
-                        (dataset.feature_types[f] == 'ordinal' or dataset.feature_types[f] == 'categorical')]
+                        (dataset.feature_types[f] == 'categorical')]
     cat_ord_features = [X_train.columns.get_loc(c) for c in cat_ord_features]
     metric = HEOM(X_train, cat_ord_features, nan_equivalents=[np.nan])
     knn = NearestNeighbors(n_neighbors=k + 1, n_jobs=-1, metric=metric.heom).fit(X_train)

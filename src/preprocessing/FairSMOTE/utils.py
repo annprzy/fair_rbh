@@ -23,7 +23,7 @@ def get_ngbr(df: pd.DataFrame, knn: NN, dataset: Dataset) -> tuple:
 def generate_samples(dataset: Dataset, df: pd.DataFrame, no_of_samples: int, cr: float = 0.8, f: float = 0.8) -> pd.DataFrame:
     new_examples = []
     cat_ord_features = [f for f, t in dataset.feature_types.items() if
-                        (t == 'ordinal' or t == 'categorical')]
+                        (t == 'categorical')]
     cat_ord_features = [df.columns.get_loc(c) for c in cat_ord_features]
     metric = HEOM(df, cat_ord_features, nan_equivalents=[np.nan])
     knn = NN(n_neighbors=3, n_jobs=-1, metric=metric.heom).fit(df)

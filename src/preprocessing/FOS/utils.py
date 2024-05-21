@@ -21,7 +21,7 @@ class FOS_SMOTE:
         X_base, y_base = base.loc[:, base.columns != dataset.target], base[dataset.target]
         X_neighbors, y_neighbors = neighbors.loc[:, neighbors.columns != dataset.target], neighbors[dataset.target]
         cat_ord_features = [f for f, t in dataset.feature_types.items() if
-                            (t == 'ordinal' or t == 'categorical') and f != dataset.target]
+                            (t == 'categorical') and f != dataset.target]
         cat_ord_features = [X_base.columns.get_loc(c) for c in cat_ord_features]
         if concat:
             X_base_instances = pd.concat([X_neighbors, X_base], axis=0)

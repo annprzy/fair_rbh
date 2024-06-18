@@ -6,11 +6,11 @@ from src.datasets.dataset import Dataset, query_dataset
 from src.preprocessing.FOS.utils import FOS_SMOTE
 
 
-def run(dataset: Dataset, k: int, oversampling_factor: float = 1.0) -> None:
+def run(dataset: Dataset, k: int, oversampling_factor: float = 1.0, distance_type='heom') -> None:
     priv = deepcopy(dataset.privileged_groups[0])
     unpriv = deepcopy(dataset.unprivileged_groups[0])
 
-    fos_smote = FOS_SMOTE(k, dataset.random_state)
+    fos_smote = FOS_SMOTE(k, dataset.random_state, distance_type=distance_type)
 
     D_min = query_dataset({dataset.target: dataset.minority}, dataset.train)
     D_maj = query_dataset({dataset.target: dataset.majority}, dataset.train)
@@ -62,19 +62,30 @@ def run(dataset: Dataset, k: int, oversampling_factor: float = 1.0) -> None:
         neighbors1 = neighbors_pr[0]
         neighbors2 = neighbors_up[1]
 
-    if n_samp1 <= len(D1):
-        base1 = D1.sample(n=n_samp1, random_state=dataset.random_state)
+    new_samples1, new_samples2 = None, None
+    if n_samp1 > 0:
+        if n_samp1 <= len(D1):
+            base1 = D1.sample(n=n_samp1, random_state=dataset.random_state)
+        else:
+            base1 = D1.sample(n=n_samp1, random_state=dataset.random_state, replace=True).reset_index(drop=True)
+
+        new_samples1 = fos_smote.generate_examples(base1, neighbors1, dataset, dataset.minority)
+
+    if n_samp2 > 0:
+        if n_samp2 <= len(D2):
+            base2 = D2.sample(n=n_samp2, random_state=dataset.random_state)
+        else:
+            base2 = D2.sample(n=n_samp2, random_state=dataset.random_state, replace=True).reset_index(drop=True)
+
+        new_samples2 = fos_smote.generate_examples(base2, neighbors2, dataset, dataset.minority)
+
+    if new_samples1 is not None and new_samples2 is not None:
+        new_train = pd.concat([dataset.train, new_samples1, new_samples2])
+    elif new_samples1 is not None:
+        new_train = pd.concat([dataset.train, new_samples1])
+    elif new_samples2 is not None:
+        new_train = pd.concat([dataset.train, new_samples2])
     else:
-        base1 = D1.sample(n=n_samp1, random_state=dataset.random_state, replace=True).reset_index(drop=True)
+        new_train = deepcopy(dataset.train)
 
-    new_samples1 = fos_smote.generate_examples(base1, neighbors1, dataset, dataset.minority)
-
-    if n_samp2 <= len(D2):
-        base2 = D2.sample(n=n_samp2, random_state=dataset.random_state)
-    else:
-        base2 = D2.sample(n=n_samp2, random_state=dataset.random_state, replace=True).reset_index(drop=True)
-
-    new_samples2 = fos_smote.generate_examples(base2, neighbors2, dataset, dataset.minority)
-
-    new_train = pd.concat([dataset.train, new_samples1, new_samples2])
     dataset.set_fair(new_train)

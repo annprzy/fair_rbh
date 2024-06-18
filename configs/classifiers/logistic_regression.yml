@@ -2,6 +2,7 @@ default:
   C: 1.0
   penalty: 'l2'
   solver: 'lbfgs'
+  random_state: 42
 fine_tune:
   C: [0.1, 1.0, 10.0, 100.0]
   penalty: ['l1', 'l2']

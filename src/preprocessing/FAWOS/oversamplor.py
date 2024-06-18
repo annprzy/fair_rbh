@@ -14,9 +14,9 @@ from src.preprocessing.FAWOS.utils import Taxonomy, DatapointsFromClassToOversam
 
 
 def run(dataset: Dataset, safe_weight: float, borderline_weight: float, rare_weight: float, outlier_weight: float = 0,
-        oversampling_factor: float = 1, taxonomies: str | None = None, save_path: str | None = None):
+        oversampling_factor: float = 1, taxonomies: str | None = None, save_path: str | None = None, distance_type='heom'):
     if taxonomies is None:
-        taxonomies = taxonomizator.create_taxonomies_and_neighbours(dataset)
+        taxonomies = taxonomizator.create_taxonomies_and_neighbours(dataset, distance_type=distance_type)
     datapoints_from_class_to_oversample_list = get_datapoints_from_class_to_oversample_list(dataset, taxonomies,
                                                                                             oversampling_factor)
     train = oversample(dataset, datapoints_from_class_to_oversample_list, safe_weight, borderline_weight,
@@ -51,14 +51,18 @@ def oversample(dataset: Dataset,
                 weight = 0
             else:
                 exit("Taxonomy weight not supported " + taxonomy.value)
-
             random_weights.extend(np.full(len(datapoints_to_oversample.datapoints_and_neighbours), weight))
             datapoints_and_neighbours.extend(datapoints_to_oversample.datapoints_and_neighbours)
+        # print(random_weights)
 
         if datapoints_and_neighbours and random_weights:
             for i in range(datapoints_from_class_to_oversample.n_times_to_oversample):
                 # choose random
-                random_datapoint_and_neighbour_idx = dataset.random_state.choice(np.arange(0, len(datapoints_and_neighbours)), p=np.array(random_weights)/np.sum(random_weights))
+                if np.sum(random_weights) != 0:
+                    proba = np.array(random_weights)
+                else:
+                    proba = np.ones(len(random_weights))
+                random_datapoint_and_neighbour_idx = dataset.random_state.choice(np.arange(0, len(datapoints_and_neighbours)), p=proba / np.sum(proba))
                 random_datapoint_and_neighbour = datapoints_and_neighbours[random_datapoint_and_neighbour_idx]
                 random_datapoint = random_datapoint_and_neighbour.datapoint
                 neighbours = random_datapoint_and_neighbour.neighbours
@@ -88,14 +92,14 @@ def create_synthetic_sample(features: dict, x1, x2, neighbours: list, dataset: D
         x1_value = x1[feature]
         x2_value = x2[feature]
 
-        if features[feature] == 'continuous':
+        if features[feature] in ['continuous', 'ordinal']:
             dif = x1_value - x2_value
             gap = dataset.random_state.random()
             synthetic_example_value = x1_value - gap * dif
 
-        elif features[feature] == 'ordinal':
-            synthetic_example_value_float = (x1_value + x2_value) / 2
-            synthetic_example_value = int(synthetic_example_value_float)
+        # elif features[feature] == 'ordinal':
+        #     synthetic_example_value_float = (x1_value + x2_value) / 2
+        #     synthetic_example_value = int(synthetic_example_value_float)
 
         elif features[feature] == 'categorical':
             datapoints = [x1]

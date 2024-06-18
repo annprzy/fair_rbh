@@ -65,6 +65,17 @@ class BinaryFairnessMeasures:
         acc = acc_priv - acc_unpriv
         return acc
 
+    def gmean_parity(self, y_pred, test:pd.DataFrame, priv:dict, unpriv:dict) -> float:
+        test_set = deepcopy(test)
+        test_set['y_pred'] = y_pred
+
+        priv_tp, priv_tn, priv_fn, priv_fp = self._confusion_matrix(test_set, priv)
+        unpriv_tp, unpriv_tn, unpriv_fn, unpriv_fp = self._confusion_matrix(test_set, unpriv)
+        gmean_priv = np.sqrt((priv_tp / (priv_tp + priv_fn)) * (priv_tn / (priv_tn + priv_fp)))
+        gmean_unpriv = np.sqrt((unpriv_tp / (unpriv_tp + unpriv_fn)) * (unpriv_tn / (unpriv_tn + unpriv_fp)))
+        gmean = gmean_priv - gmean_unpriv
+        return gmean
+
     def equal_opportunity(self, y_pred, test: pd.DataFrame, priv: dict, unpriv: dict) -> float:
         test_set = deepcopy(test)
         test_set['y_pred'] = y_pred
@@ -144,13 +155,14 @@ class BinaryFairnessMeasures:
         aao = self.average_absolute_odds(y_pred, test_set, priv, unpriv)
         di = self.disparate_impact(y_pred, test_set, priv, unpriv)
         adi = self.adapted_disparate_impact(y_pred, test_set, priv, unpriv)
-        return sp, acc, eo, ao, aao, di, adi
+        gmean = self.gmean_parity(y_pred, test_set, priv, unpriv)
+        return sp, acc, eo, ao, aao, di, adi, gmean
 
     def compute_dict(self, y_pred, test_set: pd.DataFrame, priv: dict, unpriv: dict):
         measures = self.calculate_all(y_pred, test_set, priv, unpriv)
         result = {}
         for m, n in zip(measures, ['statistical_parity', 'accuracy', 'equal_opportunity', 'average_odds', 'average_absolute_odds',
-                                   'disparate_impact', 'adapted_disparate_impact']):
+                                   'disparate_impact', 'adapted_disparate_impact', 'gmean']):
             result[n] = m
         return result
 
@@ -167,6 +179,7 @@ class MultiFairnessMeasures:
             'average_absolute_odds': self.binary_measures.average_absolute_odds,
             'disparate_impact': self.binary_measures.disparate_impact,
             'adapted_disparate_impact': self.binary_measures.adapted_disparate_impact,
+            'gmean': self.binary_measures.gmean_parity,
             'all': self.binary_measures.calculate_all,
         }
 
@@ -183,7 +196,7 @@ class MultiFairnessMeasures:
 
         if measure == 'all':
             measures = ['statistical_parity', 'accuracy', 'equal_opportunity', 'average_odds', 'average_absolute_odds',
-                        'disparate_impact', 'adapted_disparate_impact', ]
+                        'disparate_impact', 'adapted_disparate_impact', 'gmean', ]
         else:
             measures = [measure]
         results_dict = {}

@@ -1,2 +1,9 @@
-k: 5
+adult:
+  k: 7
+german:
+  k: 3
+heart_disease:
+  k: 11
+bank:
+  k: 5
 oversampling_factor: 1.0

@@ -4,7 +4,7 @@ from copy import deepcopy
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.preprocessing import StandardScaler, OneHotEncoder, MinMaxScaler
 
 from src.datasets.transforms import drop_features
 
@@ -181,7 +181,7 @@ class Dataset:
             raise ValueError(f"Wrong type for performing encoding {calc_type}")
         features_cat = [f for f, v in self.feature_types.items() if
                         v == 'categorical' and len(self.data[f].unique()) > 2 and f != self.target]
-        scaler = StandardScaler()
+        scaler = MinMaxScaler()
         scaler.fit(df_to_fit[features_cont_ord])
         X.loc[:, features_cont_ord] = scaler.transform(df_to_transform[features_cont_ord])
         if calc_type == 'cont_ord_cat':

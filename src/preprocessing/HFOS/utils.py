@@ -59,47 +59,55 @@ def compute_heterogeneous_cluster_same_target(dataset: Dataset, query: dict) -> 
 
 
 class HFOS_SMOTE:
-    def __init__(self, k: int, knn):
+    def __init__(self, k: int, knn, metric, mapping: dict, distance_type='heom'):
         self.k = k
         self.knn = knn
+        self.distance_type = distance_type
+        self.mapping = mapping
+        self.metric = metric
 
     def generate_example(self, instance: pd.DataFrame, neighbor: pd.DataFrame, dataset: Dataset):
         new_example = {}
         X_instance, y_instance = instance.loc[:, instance.columns != dataset.target], instance[dataset.target]
         X_neighbor, y_neighbor = neighbor.loc[:, neighbor.columns != dataset.target], neighbor[dataset.target]
-
-        knns, dist = self.compute_nearest_neighbors(X_instance, y_instance, dataset)
+        group_class_instance = instance[[*dataset.sensitive, dataset.target]].astype(int).astype(str).agg(
+            '_'.join, axis=1)
+        group_class_neighbor = neighbor[[*dataset.sensitive, dataset.target]].astype(int).astype(str).agg(
+            '_'.join, axis=1)
+        group_class_instance = pd.DataFrame(np.array([[self.mapping[g] for g in group_class_instance]]).T, columns=['group_class'])
+        group_class_neighbor = pd.DataFrame(np.array([[self.mapping[g] for g in group_class_neighbor]]).T, columns=['group_class'])
+        if self.distance_type == 'heom':
+            knns, dist = self.compute_nearest_neighbors(X_instance, y_instance, dataset)
+            distance_factor = self.compute_distance_factor(X_instance, X_neighbor, dist)
+        else:
+            knns, dist = self.compute_nearest_neighbors(pd.concat([X_instance.reset_index(drop=True), group_class_instance.reset_index(drop=True)], axis=1), y_instance, dataset)
+            distance_factor = self.compute_distance_factor(pd.concat([X_instance.reset_index(drop=True), group_class_instance.reset_index(drop=True)], axis=1), pd.concat([X_neighbor.reset_index(drop=True), group_class_neighbor.reset_index(drop=True)], axis=1), dist)
         weight = self.compute_weight(knns, y_instance)
         weight = dataset.random_state.uniform(low=0, high=weight, size=1)[0]
-        distance_factor = self.compute_distance_factor(X_instance, X_neighbor, dist)
         for feature in X_instance.columns:
-            # for now only continuous data are handled (from equation described in the paper)
-            x1_value = X_instance[feature].to_numpy()[0]
-            x2_value = X_neighbor[feature].to_numpy()[0]
-            new_value = x1_value + weight * (x2_value - x1_value) * distance_factor
-            # if dataset.feature_types[feature] in ['categorical', 'ordinal']:
-            #     new_value = int(new_value)
+            if dataset.feature_types[feature] in ['continuous', 'ordinal']:
+                x1_value = X_instance[feature].to_numpy()[0]
+                x2_value = X_neighbor[feature].to_numpy()[0]
+                new_value = x1_value + weight * (x1_value - x2_value) * distance_factor
+            elif dataset.feature_types[feature] in ['categorical']:
+                x1_value = X_instance[feature].to_numpy()[0]
+                x2_value = X_neighbor[feature].to_numpy()[0]
+                proba = np.array([1, distance_factor])
+                new_value = dataset.random_state.choice([x1_value, x2_value], p=proba/np.sum(proba))
             new_example[feature] = [new_value]
         new_example[dataset.target] = [y_instance.to_numpy()[0]]
         return pd.DataFrame(new_example)
 
     def compute_nearest_neighbors(self, X_instance: pd.DataFrame, y_instance: pd.DataFrame, dataset: Dataset):
         X_train, y_train = dataset.features_and_classes("train")
-        #
-        # knn = NearestNeighbors(n_neighbors=self.k + 1, p=2)
-        # knn.fit(X_train)
-        # cat_ord_features = [f for f, t in dataset.feature_types.items() if
-        #                     (t == 'ordinal' or t == 'categorical') and f != dataset.target]
-        # cat_ord_features = [X_train.columns.get_loc(c) for c in cat_ord_features]
-        # metric = HEOM(X_train, cat_ord_features, nan_equivalents=[np.nan])
-        # knn = NearestNeighbors(n_neighbors=self.k + 1, metric=metric.heom)
-        # knn.fit(X_train)
-
-        distances, nearest_neighbors = self.knn.kneighbors(X_instance)
+        if self.distance_type == 'heom':
+            distances, nearest_neighbors = self.knn.kneighbors(X_instance)
+        else:
+            distances, nearest_neighbors = self.knn.kneighbors(X_instance.to_numpy())
         distances = distances.flatten()
         nearest_neighbors = nearest_neighbors.flatten()
-        distances = [d for n, d in zip(nearest_neighbors, distances) if X_train.index[n] != X_instance.index[0]]
-        nearest_neighbors = np.array([y_train.iloc[n] for n in nearest_neighbors if X_train.index[n] != X_instance.index[0]])
+        distances = distances[1:]
+        nearest_neighbors = nearest_neighbors[1:]
         assert len(nearest_neighbors) == self.k, (distances, X_instance)
         assert len(distances) == self.k
         return nearest_neighbors, distances
@@ -109,5 +117,9 @@ class HFOS_SMOTE:
         return len([n for n in nearest_neighbors if n == y]) / self.k
 
     def compute_distance_factor(self, X_instance, X_neighbor, distances):
-        dist = np.linalg.norm(X_instance.to_numpy().flatten() - X_neighbor.to_numpy().flatten())
-        return np.max(distances) / dist
+        if self.distance_type == 'heom':
+            dist = self.metric.heom(X_instance.to_numpy().flatten(), X_neighbor.to_numpy().flatten()).flatten() ** 0.5
+        else:
+            dist = self.metric.hvdm(X_instance.to_numpy().flatten(), X_neighbor.to_numpy().flatten()).flatten() ** 0.5
+        dist = dist if dist != 0 else 1
+        return np.max(distances ** 0.5) / dist[0]

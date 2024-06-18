@@ -50,24 +50,23 @@ def binary_proportions(dataset: Dataset):
 if __name__ == '__main__':
     random_state = 42
     data_path = '../data'
-    number_examples = 5000
+    number_examples = 1000
     binary_adult_sex = AdultDataset(f'{data_path}/adult_census/adult.data', binary=True, group_type='',
                                     random_state=random_state, attr_binary='sex')
-    print(binary_adult_sex.get_stats_data(binary_adult_sex.data))
     natural, group_imbalance, class_imbalance, all_imbalances = binary_proportions(binary_adult_sex)
 
     number_samples_natural = get_number_samples(number_examples, binary_adult_sex, group_class_imbalance=natural)
-    sample_data(binary_adult_sex, number_samples_natural, save_path=f'{data_path}/adult_census/sampled_sex/natural.csv')
+    # sample_data(binary_adult_sex, number_samples_natural, save_path=f'{data_path}/adult_census/sampled_sex/new/natural.csv')
 
-    for g, d in group_imbalance.items():
-        number_samples = get_number_samples(number_examples, binary_adult_sex, group_imbalance=d)
-        sample_data(binary_adult_sex, number_samples, save_path=f'{data_path}/adult_census/sampled_sex/{g}.csv')
-
-    for c, d in class_imbalance.items():
-        number_samples = get_number_samples(number_examples, binary_adult_sex, class_imbalance=d)
-        sample_data(binary_adult_sex, number_samples, save_path=f'{data_path}/adult_census/sampled_sex/{c}.csv')
+    # for g, d in group_imbalance.items():
+    #     number_samples = get_number_samples(number_examples, binary_adult_sex, group_imbalance=d)
+    #     sample_data(binary_adult_sex, number_samples, save_path=f'{data_path}/adult_census/sampled_sex/new/{g}.csv')
+    #
+    # for c, d in class_imbalance.items():
+    #     number_samples = get_number_samples(number_examples, binary_adult_sex, class_imbalance=d)
+    #     sample_data(binary_adult_sex, number_samples, save_path=f'{data_path}/adult_census/sampled_sex/new/{c}.csv')
 
     for k, d in all_imbalances.items():
         g, c = d
         number_samples = get_number_samples(number_examples, binary_adult_sex, class_imbalance=c, group_imbalance=g)
-        sample_data(binary_adult_sex, number_samples, save_path=f'{data_path}/adult_census/sampled_sex/{k}.csv')
+        sample_data(binary_adult_sex, number_samples, save_path=f'{data_path}/adult_census/sampled_sex/new/{k}.csv')

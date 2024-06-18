@@ -21,7 +21,7 @@ class HeartDataset(Dataset):
         sensitive_attrs = ['sex']
 
         target_attr = 'class'
-        privileged_class = 0
+        privileged_class = 1
         
         #data = data.drop(columns=['cp', 'fbs', 'restcg', 'exang', 'slope', 'thal'])
         

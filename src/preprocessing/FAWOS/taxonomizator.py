@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from distython import HEOM
+from distython import HEOM, HVDM
 from sklearn.neighbors import NearestNeighbors
 
 from src.datasets.dataset import Dataset
@@ -8,18 +8,28 @@ from src.preprocessing.FAWOS.utils import TaxonomyAndNeighbours, Taxonomy
 
 
 def create_taxonomies_and_neighbours(dataset: Dataset,
-                                     taxonomies_filename: str | None = None):
+                                     taxonomies_filename: str | None = None, distance_type='heom'):
     X_train, y_train = dataset.features_and_classes("train")
     # distances = heomDist(dataset, X_train)
 
     cat_ord_features = [f for f, t in dataset.feature_types.items() if
                         (t == 'categorical') and f != dataset.target]
     cat_ord_features = [X_train.columns.get_loc(c) for c in cat_ord_features]
-    metric = HEOM(X_train, cat_ord_features, nan_equivalents=[np.nan])
-    knn = NearestNeighbors(n_neighbors=6, metric=metric.heom, n_jobs=-1)
-    knn.fit(X_train)
 
-    taxonomies_and_neighbours = determine_taxonomies_and_neighbours(knn, dataset, X_train, y_train)
+    if distance_type == 'heom':
+        group_class_m = []
+        metric = HEOM(X_train, cat_ord_features, nan_equivalents=[np.nan], normalised='')
+        knn = NearestNeighbors(n_neighbors=6, metric=metric.heom, n_jobs=-1)
+        knn.fit(X_train)
+    else:
+        group_class = dataset.train[[*dataset.sensitive, dataset.target]].astype(int).astype(str).agg(
+            '_'.join, axis=1)
+        mapping = {g: i for i, g in enumerate(np.unique(group_class))}
+        group_class_m = pd.DataFrame(np.array([[mapping[g] for g in group_class]]).T, columns=['group_class'])
+        metric = HVDM(pd.concat([X_train, group_class_m], axis=1).to_numpy(), [X_train.shape[1]], cat_ord_features, nan_equivalents=[np.nan])
+        knn = NearestNeighbors(n_neighbors=6, metric=metric.hvdm, n_jobs=-1)
+        knn.fit(pd.concat([X_train, group_class_m], axis=1).to_numpy())
+    taxonomies_and_neighbours = determine_taxonomies_and_neighbours(knn, dataset, X_train, y_train, distance_type=distance_type, group_class_m=group_class_m)
     if taxonomies_filename is not None:
         TaxonomyAndNeighbours.save_taxonomies_and_neighbours(taxonomies_filename, taxonomies_and_neighbours)
     else:
@@ -29,9 +39,9 @@ def create_taxonomies_and_neighbours(dataset: Dataset,
 def determine_taxonomies_and_neighbours(knn,
                                         dataset: Dataset,
                                         X_train: pd.DataFrame,
-                                        y_train: pd.Series) -> list[TaxonomyAndNeighbours]:
+                                        y_train: pd.Series, distance_type='heom', group_class_m=None) -> list[TaxonomyAndNeighbours]:
     taxonomies_and_neighbours = []
-    neighbours_list = calculate_neighbours(knn, dataset, X_train, y_train)
+    neighbours_list = calculate_neighbours(knn, dataset, X_train, y_train, distance_type=distance_type, group_class_m=group_class_m)
 
     for i in range(len(neighbours_list)):
         count = len(neighbours_list[i])
@@ -63,10 +73,12 @@ def determine_taxonomies_and_neighbours(knn,
     return taxonomies_and_neighbours
 
 
-def calculate_neighbours(knn, dataset: Dataset, X_train: pd.DataFrame, y_train: pd.Series):
+def calculate_neighbours(knn, dataset: Dataset, X_train: pd.DataFrame, y_train: pd.Series, distance_type='heom', group_class_m=None):
     neighbours_list = []
-
-    distances, nearest_neighbors = knn.kneighbors(X_train)
+    if distance_type == 'heom':
+        distances, nearest_neighbors = knn.kneighbors(X_train)
+    else:
+        distances, nearest_neighbors = knn.kneighbors(pd.concat([X_train, group_class_m], axis=1).to_numpy())
 
     for idx, distance, nns in zip(range(len(X_train)), distances, nearest_neighbors):
         datapoint = X_train.iloc[idx, :]

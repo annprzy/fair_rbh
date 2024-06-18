@@ -1,15 +1,16 @@
 import numpy as np
 import pandas as pd
-from distython import HEOM
+from distython import HEOM, HVDM
 from sklearn.neighbors import NearestNeighbors
 
 from src.datasets.dataset import Dataset
 
 
 class FOS_SMOTE:
-    def __init__(self, k: int, random_state: int):
+    def __init__(self, k: int, random_state: int, distance_type='heom'):
         self.k = k
         self.random_state = random_state
+        self.distance_type = distance_type
 
     def generate_examples(self, base: pd.DataFrame, neighbors: pd.DataFrame, dataset: Dataset, target_value: int, concat: bool = True):
         """first compute k-nearest neighbors of each instance in the base, then generate new instance
@@ -23,21 +24,50 @@ class FOS_SMOTE:
         cat_ord_features = [f for f, t in dataset.feature_types.items() if
                             (t == 'categorical') and f != dataset.target]
         cat_ord_features = [X_base.columns.get_loc(c) for c in cat_ord_features]
+
         if concat:
+            base_instances = pd.concat([neighbors, base], axis=0)
             X_base_instances = pd.concat([X_neighbors, X_base], axis=0)
         else:
+            base_instances = neighbors
             X_base_instances = X_neighbors
-        metric = HEOM(X_base_instances, cat_ord_features, nan_equivalents=[np.nan])
 
-        knn = NearestNeighbors(n_neighbors=self.k + 1, metric=metric.heom, n_jobs=-1)
-        knn.fit(X_neighbors)
-        for idx in X_base.index:
-            b = X_base.loc[[idx], :]
-            distances, nearest_neighbors = knn.kneighbors(b)
-            distances = distances.flatten()
-            nearest_neighbors = nearest_neighbors.flatten()
-            nearest_neighbors = np.array([X_base_instances.index[n] for n, d in zip(nearest_neighbors, distances) if d > 0])
-            assert len(nearest_neighbors) == self.k, (distances, b, nearest_neighbors, dataset.random_state_init)
+        group_class = dataset.train[[*dataset.sensitive, dataset.target]].astype(int).astype(str).agg(
+            '_'.join, axis=1)
+        mapping = {g: i for i, g in enumerate(np.unique(group_class))}
+        group_class_m = pd.DataFrame(np.array([[mapping[g] for g in group_class]]).T, columns=['group_class'])
+        group_class_neighbors = neighbors[[*dataset.sensitive, dataset.target]].astype(int).astype(str).agg(
+            '_'.join, axis=1)
+        group_class_neighbors = pd.DataFrame(np.array([[mapping[g] for g in group_class_neighbors]]).T, columns=['group_class'])
+        group_class_base = base[[*dataset.sensitive, dataset.target]].astype(int).astype(str).agg(
+            '_'.join, axis=1)
+        group_class_base = pd.DataFrame(np.array([[mapping[g] for g in group_class_base]]).T,
+                                             columns=['group_class'])
+        if self.k + 1 >= len(X_neighbors):
+            k = len(X_neighbors) - 1
+        else:
+            k = self.k
+        if self.distance_type == 'heom':
+            metric = HEOM(X_base_instances, cat_ord_features, nan_equivalents=[np.nan], normalised='')
+            knn = NearestNeighbors(n_neighbors=k + 1, metric=metric.heom, n_jobs=-1, algorithm='brute')
+            knn.fit(X_neighbors)
+        else:
+            X_train, y_train = dataset.features_and_classes('train')
+            metric = HVDM(pd.concat([X_train, group_class_m], axis=1).to_numpy(), [X_train.shape[1]], cat_ord_features, nan_equivalents=[np.nan])
+            knn = NearestNeighbors(n_neighbors=k + 1, metric=metric.hvdm, n_jobs=-1, algorithm='brute')
+            knn.fit(pd.concat([X_neighbors.reset_index(drop=True), group_class_neighbors.reset_index(drop=True)], axis=1).to_numpy())
+        for idx in range(len(X_base)):
+            b = X_base.iloc[[idx], :]
+            group_class_b = group_class_base.iloc[[idx], :]
+            if self.distance_type == 'heom':
+                distances, nearest_neighbors = knn.kneighbors(b)
+            else:
+                b_group_class = pd.concat([b.reset_index(drop=True), group_class_b.reset_index(drop=True)], axis=1).to_numpy()
+                distances, nearest_neighbors = knn.kneighbors(b_group_class)
+            distances = distances.flatten()[1:]
+            nearest_neighbors = nearest_neighbors.flatten()[1:]
+            nearest_neighbors = np.array([X_base_instances.index[n] for n in nearest_neighbors])
+            assert len(nearest_neighbors) == k, (distances, b, nearest_neighbors, dataset.random_state_init)
             new_example = self._generate_synthetic_example(b, X_neighbors, nearest_neighbors, dataset)
             new_example[dataset.target] = target_value
             new_examples.append(new_example)
@@ -63,14 +93,14 @@ class FOS_SMOTE:
             x1_value = base[feature].to_numpy()[0]
             x2_value = random_neighbor[feature].to_numpy()[0]
 
-            if features[feature] == 'continuous':
+            if features[feature] in ['continuous', 'ordinal']:
                 dif = x1_value - x2_value
                 gap = dataset.random_state.random()
                 synthetic_example_value = x1_value - gap * dif
 
-            elif features[feature] == 'ordinal':
-                synthetic_example_value_float = (x1_value + x2_value) / 2
-                synthetic_example_value = int(synthetic_example_value_float)
+            # elif features[feature] == 'ordinal':
+            #     synthetic_example_value_float = (x1_value + x2_value) / 2
+            #     synthetic_example_value = int(synthetic_example_value_float)
 
             elif features[feature] == 'categorical':
                 # most common value

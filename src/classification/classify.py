@@ -38,7 +38,7 @@ class Classifier(ABC):
         X_train, y_train = dataset.features_and_classes(data, encoding=True, enc_type=enc_type)
         self.model.fit(X_train, y_train)
 
-    def predict_and_evaluate(self, dataset: Dataset, fairness_type: str, calc_type: str = None, enc_type: str = None) -> tuple[dict, dict]:
+    def predict_and_evaluate(self, dataset: Dataset, fairness_type: str, calc_type: str = None, enc_type: str = None) -> tuple[dict, dict, np.array]:
         """predict and evaluate
         :param enc_type: type of encoding to use
         :param dataset: the dataset used for experiments
@@ -57,4 +57,4 @@ class Classifier(ABC):
             fairness_scores = MultiFairnessMeasures(dataset).compute_measure('all', y_pred, dataset.test, calc_type)
         else:
             raise ValueError(f"Unknown fairness type: {fairness_type}")
-        return performance_scores, fairness_scores
+        return performance_scores, fairness_scores, y_pred

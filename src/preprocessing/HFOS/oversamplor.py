@@ -24,12 +24,10 @@ def run(dataset: Dataset, k: int = 5, distance_type='heom'):
         knn = NearestNeighbors(n_neighbors=k + 1, metric=metric.heom, algorithm='brute', n_jobs=-1)
         knn.fit(X_train)
     else:
-        metric = HVDM(pd.concat([X_train, group_class_m.reset_index(drop=True)],
-                                axis=1).to_numpy(), [X_train.shape[1]], cat_ord_features,
+        metric = HVDM(dataset.train.to_numpy(), [X_train.shape[1]], cat_ord_features,
                       nan_equivalents=[np.nan])
         knn = NearestNeighbors(n_neighbors=k + 1, metric=metric.hvdm, n_jobs=-1, algorithm='brute')
-        knn.fit(pd.concat([X_train, group_class_m],
-                          axis=1).to_numpy())
+        knn.fit(dataset.train.to_numpy())
 
     clusters = get_clusters(dataset)
     max_cluster_len = -np.inf

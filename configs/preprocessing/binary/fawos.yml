@@ -1,0 +1,17 @@
+oversampling_factor: 1.0
+adult:
+  safe_weight: 0
+  borderline_weight: 0.6
+  rare_weight: 0.4
+german:
+  safe_weight: 0.33
+  borderline_weight: 0.33
+  rare_weight: 0.33
+heart_disease:
+  safe_weight: 0.33
+  borderline_weight: 0.33
+  rare_weight: 0.33
+bank:
+  safe_weight: 0
+  borderline_weight: 0.5
+  rare_weight: 0.5

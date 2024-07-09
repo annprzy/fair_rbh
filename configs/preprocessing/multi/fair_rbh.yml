@@ -1,0 +1,8 @@
+adult:
+  gamma: 0.03
+german:
+  gamma: 0.07
+bank:
+  gamma: 0.03
+distance_type: 'heom'
+approach_number: 2

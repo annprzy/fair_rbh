@@ -1,0 +1,10 @@
+adult:
+  gamma: 0.03
+german:
+  gamma: 0.05
+heart_disease:
+  gamma: 0.03
+bank:
+  gamma: 0.05
+distance_type: 'hvdm'
+approach_number: 3

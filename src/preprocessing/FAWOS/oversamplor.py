@@ -60,18 +60,17 @@ def oversample(dataset: Dataset,
                 # choose random
                 if np.sum(random_weights) != 0:
                     proba = np.array(random_weights)
-                else:
-                    proba = np.ones(len(random_weights))
-                random_datapoint_and_neighbour_idx = dataset.random_state.choice(np.arange(0, len(datapoints_and_neighbours)), p=proba / np.sum(proba))
-                random_datapoint_and_neighbour = datapoints_and_neighbours[random_datapoint_and_neighbour_idx]
-                random_datapoint = random_datapoint_and_neighbour.datapoint
-                neighbours = random_datapoint_and_neighbour.neighbours
-                random_neighbour = dataset.random_state.choice(np.arange(0, len(neighbours)))
-                random_neighbour = neighbours[random_neighbour]
 
-                new_synthetic_datapoint = create_synthetic_sample(dataset.feature_types, random_datapoint,
-                                                                  random_neighbour, neighbours, dataset)
-                df = pd.concat([df, pd.DataFrame([new_synthetic_datapoint])])
+                    random_datapoint_and_neighbour_idx = dataset.random_state.choice(np.arange(0, len(datapoints_and_neighbours)), p=proba / np.sum(proba))
+                    random_datapoint_and_neighbour = datapoints_and_neighbours[random_datapoint_and_neighbour_idx]
+                    random_datapoint = random_datapoint_and_neighbour.datapoint
+                    neighbours = random_datapoint_and_neighbour.neighbours
+                    random_neighbour = dataset.random_state.choice(np.arange(0, len(neighbours)))
+                    random_neighbour = neighbours[random_neighbour]
+
+                    new_synthetic_datapoint = create_synthetic_sample(dataset.feature_types, random_datapoint,
+                                                                      random_neighbour, neighbours, dataset)
+                    df = pd.concat([df, pd.DataFrame([new_synthetic_datapoint])])
 
     # save new dataset
     if filename is not None:
@@ -102,7 +101,7 @@ def create_synthetic_sample(features: dict, x1, x2, neighbours: list, dataset: D
         #     synthetic_example_value = int(synthetic_example_value_float)
 
         elif features[feature] == 'categorical':
-            datapoints = [x1]
+            datapoints = []
             datapoints.extend(neighbours)
             synthetic_example_value = choose_most_common_value_from_all_datapoints(datapoints,
                                                                                    feature)  # TODO does most common??
@@ -161,21 +160,22 @@ def get_datapoints_from_class_to_oversample_list(dataset: Dataset, taxonomies, o
             (desired_count_positive_unprivileged - count_positive_unprivileged) * oversampling_factor)
         print("Difference in class " + str(classes) + " is " + str(n_times_to_oversample))
 
-        effect = count_negative_unprivileged / count_positive_unprivileged - count_negative_privileged / count_positive_privileged
-        print("Effect of class " + str(classes) + " is " + str(effect))
+        if count_positive_unprivileged != 0 and count_positive_privileged != 0:
+            effect = count_negative_unprivileged / count_positive_unprivileged - count_negative_privileged / count_positive_privileged
+            print("Effect of class " + str(classes) + " is " + str(effect))
 
-        datapoints_to_oversample_list = []
+            datapoints_to_oversample_list = []
 
-        for taxonomy in [Taxonomy.OUTLIER, Taxonomy.RARE, Taxonomy.BORDERLINE, Taxonomy.SAFE]:
-            datapoints_and_neighbours = get_datapoints_and_neighbours_from_same_classes_and_taxonomy(taxonomies, df,
-                                                                                                     classes, taxonomy)
-            datapoints_to_oversample = DatapointsToOversample(taxonomy, datapoints_and_neighbours)
-            datapoints_to_oversample_list.append(datapoints_to_oversample)
+            for taxonomy in [Taxonomy.OUTLIER, Taxonomy.RARE, Taxonomy.BORDERLINE, Taxonomy.SAFE]:
+                datapoints_and_neighbours = get_datapoints_and_neighbours_from_same_classes_and_taxonomy(taxonomies, df,
+                                                                                                         classes, taxonomy)
+                datapoints_to_oversample = DatapointsToOversample(taxonomy, datapoints_and_neighbours)
+                datapoints_to_oversample_list.append(datapoints_to_oversample)
 
-        datapoints_from_class_to_oversample = DatapointsFromClassToOversample(n_times_to_oversample,
-                                                                              datapoints_to_oversample_list,
-                                                                              classes)
-        datapoints_from_class_to_oversample_list.append(datapoints_from_class_to_oversample)
+            datapoints_from_class_to_oversample = DatapointsFromClassToOversample(n_times_to_oversample,
+                                                                                  datapoints_to_oversample_list,
+                                                                                  classes)
+            datapoints_from_class_to_oversample_list.append(datapoints_from_class_to_oversample)
 
     return datapoints_from_class_to_oversample_list
 

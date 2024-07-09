@@ -1,6 +1,0 @@
-adult:
-safe: 0.0
-borderline: 0.6
-rare: 0.4
-outlier: 0.0
-max_undersampling_frac: 0.6

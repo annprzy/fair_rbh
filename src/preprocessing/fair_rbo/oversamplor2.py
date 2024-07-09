@@ -8,78 +8,15 @@ from src.datasets.dataset import Dataset
 from src.preprocessing.HFOS.utils import get_clusters
 
 
-class CustomDistance:
-    def __init__(self, categorical_features, lower_range, upper_range, cat_frequencies, step_size=0.001):
-        self.categorical_features = categorical_features
-        self.lower_range = lower_range
-        self.upper_range = upper_range
-        self.step_size = step_size
-        self.path_lengths = self.calculate_paths_categorical(cat_frequencies)
-
-    def distance(self, x, y):
-        dist = 0
-        for i in range(len(x)):
-            if i not in self.categorical_features:
-                dist += np.abs(x[i] - y[i]) / (self.upper_range[i] - self.lower_range[i])
-            else:
-                dist += self.path_lengths[i][x[i]][y[i]] * self.step_size
-        return dist
-
-    def calculate_paths_categorical(self, cat_frequencies):
-        path_lengths = {i: {} for i in self.categorical_features}
-        G = nx.DiGraph()
-        for i in self.categorical_features:
-            values = cat_frequencies[i]
-            for j in values.keys():
-                values_j, counts_j = np.unique(values[j], return_counts=True)
-                counts_j = np.max(counts_j) + 1 - counts_j
-                counts_j = counts_j / np.sum(counts_j)
-                for v, c in zip(values_j, counts_j):
-                    G.add_edge(j, v, weight=c)
-        for i in self.categorical_features:
-            values = cat_frequencies[i]
-            for j in values.keys():
-                distances = {}
-                for k in values.keys():
-                    if k == j:
-                        distances[k] = 0
-                    else:
-                        try:
-                            distances[k] = nx.shortest_path_length(G, source=j, target=k, weight='weight')
-                        except:
-                            distances[k] = 1 / self.step_size
-                path_lengths[i][j] = distances
-
-        # for i in self.categorical_features:
-        #     values = cat_frequencies[i]
-        #     len_features = len(list(values.keys()))
-        #     for j in values.keys():
-        #         distances = {}
-        #         for k in values.keys():
-        #             if k == j:
-        #                 distances[k] = 0
-        #             else:
-        #                 ns = set(values[j])
-        #                 dist = 1
-        #                 while k not in ns and dist != len_features:
-        #                     dist += 1
-        #                     ns.update(values[k])
-        #                 distances[k] = dist
-        #         path_lengths[i][j] = distances
-        return path_lengths
-
-
 def run(dataset: Dataset, gamma=0.05, approach_number=0, distance_type='heom'):
-    rbo = FairRBO(dataset, gamma=gamma, step_size=0.001, n_steps=750, approximate_potential=True,
-                  n_nearest_neighbors=50, k=3, approach_number=approach_number, distance_type=distance_type)
+    rbo = FairRBO(dataset, gamma=gamma, step_size=0.001, n_steps=100, approximate_potential=True,
+                  n_nearest_neighbors=50, k=5, approach_number=approach_number, distance_type=distance_type)
     new_data = rbo.fit_sample()
     dataset.set_fair(new_data)
 
 
 def distance(x, y, metric, x_class=None, y_class=None, distance_type='heom'):
-    if distance_type == 'custom':
-        return metric.distance(x, y)
-    elif distance_type == 'heom':
+    if distance_type == 'heom':
         return metric.heom(x, y).flatten()[0] ** 0.5
     else:
         return metric.hvdm(np.append(x, x_class), np.append(y, y_class)).flatten()[0] ** 0.5
@@ -105,12 +42,12 @@ def mutual_class_potential(point, neighbors, groups_neighbors, class_neighbors, 
         group_class_current = '_'.join([group_current, str(int(class_current))])
         group_class_neighbor = '_'.join([groups_neighbors[i], str(int(class_neighbors[i]))])
 
-        dist = distance(point, n_point, metric, x_class=mapping[group_class_current], y_class=mapping[group_class_neighbor], distance_type=distance_type)
+        dist = distance(point, n_point, metric, x_class=class_current, y_class=class_neighbors[i], distance_type=distance_type)
         # multiplier = (np.sum(same_groups) / len(same_groups))
         rbf_score = rbf(dist, gamma)
         # if class_neighbors[i] == class_current and np.sum(same_groups) == len(same_groups):
         #     result -= rbf_score
-        if class_neighbors[i] == class_current and np.sum(same_groups) == len(same_groups):
+        if group_class_current == group_class_neighbor:
             result -= rbf_score
         else:
             result += rbf_score
@@ -120,14 +57,16 @@ def mutual_class_potential(point, neighbors, groups_neighbors, class_neighbors, 
     return result
 
 
-def generate_possible_directions(point, included_features, cat_features, cat_freq, dataset, excluded_direction=None):
+def generate_possible_directions(point, included_features, cat_features, k_nearest_neighbors, dataset, excluded_direction=None):
     possible_directions = []
 
     for dimension in included_features:
         if dimension in cat_features:
-            possible_values = cat_freq[dimension][point[dimension]]
-            unique_values = np.unique(possible_values)
-            for v in unique_values:
+            possible_values = k_nearest_neighbors[:, dimension].flatten()
+            unique_values, counts = np.unique(possible_values, return_counts=True)
+            counts = np.argsort(-counts)
+            unique_values = unique_values[counts]
+            for v in unique_values[:2]:
                 if excluded_direction is None or (excluded_direction[0] != dimension or excluded_direction[1] != v):
                     possible_directions.append((dimension, v))
         else:
@@ -142,7 +81,7 @@ def generate_possible_directions(point, included_features, cat_features, cat_fre
 
 class FairRBO:
     def __init__(self, dataset: Dataset, gamma=0.05, step_size=0.001, n_steps=500, approximate_potential=True,
-                 n_nearest_neighbors=25, k=3, approach_number=0, distance_type='heom'):
+                 n_nearest_neighbors=25, k=5, approach_number=0, distance_type='heom'):
         self.gamma = gamma
         self.step_size = step_size
         self.n_steps = n_steps
@@ -153,25 +92,21 @@ class FairRBO:
         self.approach_number = approach_number
         self.distance_type = distance_type
 
-    def calculate_frequencies_neighbors(self, X: np.ndarray, features: list, metric, mapping_groups=None):
-        result = {f: {} for f in features}
-        if self.distance_type in ['heom', 'custom']:
+    def get_knn_struct(self, X: np.ndarray, metric, mapping_groups=None):
+        if self.distance_type == 'heom':
             knn = NearestNeighbors(n_neighbors=self.k + 1, n_jobs=-1, metric=metric.heom, algorithm='brute').fit(X)
         else:
             knn = NearestNeighbors(n_neighbors=self.k + 1, n_jobs=-1, metric=metric.hvdm, algorithm='brute').fit(np.c_[X, mapping_groups])
-        for i, x in enumerate(X):
-            if self.distance_type in ['heom', 'custom']:
-                nns = knn.kneighbors([x], return_distance=False)
-            else:
-                nns = knn.kneighbors([np.append(x, mapping_groups[i])], return_distance=False)
-            nns = nns.flatten()
-            nns = X[nns, :]
-            for f in features:
-                if x[f] not in result[f]:
-                    result[f][x[f]] = [n[f] for n in nns]
-                else:
-                    result[f][x[f]].extend([n[f] for n in nns])
-        return result
+        return knn
+
+    def get_knns(self, knn, x, mapping_group=None):
+        if self.distance_type == 'heom':
+            nns = knn.kneighbors([x], return_distance=False)
+        else:
+            nns = knn.kneighbors([np.append(x, mapping_group)], return_distance=False)
+        nns = nns.flatten()[1:]
+        return nns
+
 
     def fit_sample(self):
         cat_ord_features = [f for f, t in self.dataset.feature_types.items() if
@@ -191,10 +126,10 @@ class FairRBO:
         mapping = {g: i for i, g in enumerate(unique_groups)}
         group_class_m = pd.DataFrame(np.array([[mapping[g] for g in group_class]]).T, columns=['group_class'])
 
-        if self.distance_type in ['heom', 'custom']:
+        if self.distance_type == 'heom':
             metric = HEOM(X_train.to_numpy(), cat_ord_features, nan_equivalents=[np.nan], normalised='')
         else:
-            metric = HVDM(pd.concat([X_train, group_class_m], axis=1).to_numpy(), [X_train.shape[1]], cat_ord_features,
+            metric = HVDM(self.dataset.train.to_numpy(), [X_train.shape[1]], cat_ord_features,
                           nan_equivalents=[np.nan])
 
         groups = np.array(X_train[self.dataset.sensitive].astype(int).astype(str).agg('_'.join, axis=1).to_list())
@@ -207,13 +142,9 @@ class FairRBO:
 
         group_class_m_np = np.array([mapping[g] for g in group_class])
 
-        cat_frequencies = self.calculate_frequencies_neighbors(X_full, list(np.argwhere(types_vector == 0).flatten()),
-                                                               metric, mapping_groups=group_class_m_np)
+        knn_cat = self.get_knn_struct(X_full, metric, group_class_m_np)
 
         appended = []
-
-        distance_metric = CustomDistance(np.argwhere(types_vector == 0).flatten(), lower_range, upper_range,
-                                         cat_frequencies)
 
         for e, ee in enumerate(order_clusters):
             entry = clusters[ee]
@@ -341,12 +272,9 @@ class FairRBO:
                         if self.distance_type == 'heom':
                             used_metric = metric
                             distance_vector = [metric.heom(point, x) for x in X_sample]
-                        elif self.distance_type == 'custom':
-                            used_metric = distance_metric
-                            distance_vector = [distance_metric.distance(point, x) for x in X_sample]
                         else:
                             used_metric = metric
-                            distance_vector = [metric.hvdm(np.append(point, mapping[group_class_current]), np.append(x, mapping[g_c])) for x, g_c in zip(X_sample, group_class_sample)]
+                            distance_vector = [metric.hvdm(np.append(point, current_class), np.append(x, y_x)) for x, y_x in zip(X_sample, y_sample)]
                         indices = np.argsort(distance_vector)[1:(self.n_nearest_neighbors + 1)]
                         # print(self.distance_type, distance_vector)
                         closest_points = X_sample[indices]
@@ -369,43 +297,48 @@ class FairRBO:
                             if self.distance_type == 'heom':
                                 used_metric = metric
                                 distance_vector = [metric.heom(point, x) for x in X_cluster_j]
-                            elif self.distance_type == 'custom':
-                                used_metric = distance_metric
-                                distance_vector = [metric.heom(point, x) for x in X_cluster_j]
                             else:
                                 used_metric = metric
-                                distance_vector = [metric.hvdm(np.append(point, mapping[group_class_current]),
-                                                               np.append(x, mapping[group_class_cluster_j])) for x in X_cluster_j]
+                                distance_vector = [metric.hvdm(np.append(point, current_class),
+                                                               np.append(x, query[self.dataset.target])) for x in X_cluster_j]
 
                             indices = np.argsort(distance_vector)[1:(num_neighbors_per_subgroup + 1)]
                             closest_points.append(X_cluster_j[indices])
                             closest_groups.extend([group_j] * len(indices))
                             closest_y.extend(y_cluster_j[indices])
+
                         closest_points = np.concatenate(closest_points)
                         closest_groups = np.array(closest_groups)
                         closest_y = np.array(closest_y)
 
                     for _ in range(n_synthetic_points_per_object[i]):
                         translation = point.copy()
+                        k_closest_neighbors = self.get_knns(knn_cat, translation, mapping_group=mapping[group_class_current])
+                        k_closest_neighbors = X_full[k_closest_neighbors, :]
                         translation_history = [translation]
                         potential = mutual_class_potential(point, closest_points, closest_groups, closest_y,
                                                            current_group, current_class, used_metric, self.gamma, distance_type=self.distance_type, mapping=mapping)
                         possible_directions = generate_possible_directions(point, sampling_features,
                                                                            list(np.argwhere(
                                                                                types_vector == 0).flatten()),
-                                                                           cat_frequencies, self.dataset)
+                                                                           k_closest_neighbors, self.dataset)
 
                         for _ in range(self.n_steps):
+                            modified_point = translation.copy()
                             if len(possible_directions) == 0:
                                 break
-
                             dimension, sign = possible_directions.pop()
-                            modified_point = point.copy()
+
                             if types_vector[dimension] == 0:
                                 modified_point[dimension] = sign
                             else:
                                 full_range = upper_range[dimension] - lower_range[dimension]
-                                modified_point[dimension] += sign * full_range * self.step_size
+                                v = modified_point[dimension] + sign * full_range * self.step_size
+                                if v > upper_range[dimension]:
+                                    v = upper_range[dimension] + (v - upper_range[dimension])
+                                elif v < lower_range[dimension]:
+                                    v = lower_range[dimension] + (lower_range[dimension] - v)
+                                modified_point[dimension] = v
 
                             modified_potential = mutual_class_potential(modified_point, closest_points, closest_groups,
                                                                         closest_y, current_group, current_class,
@@ -415,21 +348,23 @@ class FairRBO:
                             assert point[s_id] == modified_point[s_id]
 
                             if np.abs(modified_potential) < np.abs(potential):
-                                translation = modified_point
+                                translation = modified_point.copy()
                                 translation_history.append(translation)
                                 potential = modified_potential
                                 if types_vector[dimension] == 0:
                                     excluded = (dimension, sign)
                                 else:
                                     excluded = (dimension, -sign)
-
+                                k_closest_neighbors = self.get_knns(knn_cat, translation,
+                                                                    mapping_group=current_class)
+                                k_closest_neighbors = X_full[k_closest_neighbors, :]
                                 possible_directions = generate_possible_directions(modified_point, sampling_features,
                                                                                    list(np.argwhere(
                                                                                        types_vector == 0).flatten()),
-                                                                                   cat_frequencies, self.dataset,
+                                                                                   k_closest_neighbors, self.dataset,
                                                                                    excluded_direction=excluded)
 
-                        new_examples.append(translation)
+                        new_examples.append(translation.copy())
                 new_examples = np.array(new_examples)
                 new_X = np.concatenate((X, new_examples))
                 new_y = np.concatenate([y, current_class * np.ones(len(new_examples))])

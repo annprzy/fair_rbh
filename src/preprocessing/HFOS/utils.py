@@ -80,8 +80,8 @@ class HFOS_SMOTE:
             knns, dist = self.compute_nearest_neighbors(X_instance, y_instance, dataset)
             distance_factor = self.compute_distance_factor(X_instance, X_neighbor, dist)
         else:
-            knns, dist = self.compute_nearest_neighbors(pd.concat([X_instance.reset_index(drop=True), group_class_instance.reset_index(drop=True)], axis=1), y_instance, dataset)
-            distance_factor = self.compute_distance_factor(pd.concat([X_instance.reset_index(drop=True), group_class_instance.reset_index(drop=True)], axis=1), pd.concat([X_neighbor.reset_index(drop=True), group_class_neighbor.reset_index(drop=True)], axis=1), dist)
+            knns, dist = self.compute_nearest_neighbors(instance, y_instance, dataset)
+            distance_factor = self.compute_distance_factor(instance, neighbor, dist)
         weight = self.compute_weight(knns, y_instance)
         weight = dataset.random_state.uniform(low=0, high=weight, size=1)[0]
         for feature in X_instance.columns:

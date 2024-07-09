@@ -1,0 +1,7 @@
+adult:
+  k: 3
+german:
+  k: 5
+bank:
+  k: 11
+oversampling_factor: 1.0

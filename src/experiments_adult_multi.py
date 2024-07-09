@@ -18,17 +18,8 @@ def experiment_adult(dataset_name: str, algorithm: str, models: list[str], itera
                      kfolds: int = None, enc_type: str = 'cont_ord_cat', results_path: str = '../results',
                      config_path: str = '../configs', data_path: str = '../data'):
     dataset_name = dataset_name[:-4]
-    dataset = AdultSampledDataset(f'{data_path}/{dataset_name}.csv', binary=True, group_type='', random_state=random_seed)
+    dataset = AdultSampledDataset(f'{data_path}/{dataset_name}.csv', binary=False, group_type='', random_state=random_seed)
     if kfolds is not None:
-        #if not 'strongly_imbalanced_g_strongly_imbalanced_c' in dataset_name:
-        # kf = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
-        # dataset_train = dataset.data
-        # classes = dataset_train[dataset.target].to_list()
-        # group_class = dataset_train[dataset.sensitive].astype(int).astype(str).agg('-'.join, axis=1).to_list()
-        # group_class = ['_'.join([g, str(int(c))]) for g, c in zip(group_class, classes)]
-        # results = list(kf.split(dataset_train, group_class))[iteration]
-        # train_set, test_set = results
-        # else:
         kf = RepeatedStratifiedKFold(n_splits=2, n_repeats=5, random_state=42)
         dataset_train = dataset.data
         classes = dataset_train[dataset.target].to_list()
@@ -98,10 +89,10 @@ if __name__ == "__main__":
     encoding = 'cont_ord_cat'
     date = 'mean'
     config_path = '../configs'
-    results_path = '../results_adult_bin'
+    results_path = '../results_adult_multi'
     data_path = '../data'
-    folder_path = 'sampled_sex/new'
-    dataset_files = [f for f in os.listdir(f'{data_path}/adult_census/{folder_path}') if 'strongly_imbalanced_g_strongly_imbalanced_c' in f]
+    folder_path = 'sampled_all/new'
+    dataset_files = [f for f in os.listdir(f'{data_path}/adult_census/{folder_path}')]
     iterations = [i for i in range(0, kfolds)]
     seeds = [42 for i in iterations]
     all_options = list(product(dataset_files, algorithms, iterations))

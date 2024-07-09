@@ -47,16 +47,25 @@ class BinaryFairnessMeasures:
         test_set = deepcopy(test)
         test_set['y_pred'] = y_pred
 
+        if unpriv is None:
+            priv_tp, priv_tn, priv_fn, priv_fp = self._confusion_matrix(test_set, priv)
+            sp_priv = (priv_tp + priv_fp) / (priv_tp + priv_tn + priv_fn + priv_fp)
+            return sp_priv
         priv_tp, priv_tn, priv_fn, priv_fp = self._confusion_matrix(test_set, priv)
-        unpriv_tp, unpriv_tn, unpriv_fn, unpriv_fp = self._confusion_matrix(test_set, unpriv)
         sp_priv = (priv_tp + priv_fp) / (priv_tp + priv_tn + priv_fn + priv_fp)
+        unpriv_tp, unpriv_tn, unpriv_fn, unpriv_fp = self._confusion_matrix(test_set, unpriv)
         sp_unpriv = (unpriv_tp + unpriv_fp) / (unpriv_tp + unpriv_tn + unpriv_fn + unpriv_fp)
         sp = sp_priv - sp_unpriv
         return sp
 
-    def accuracy_parity(self, y_pred, test:pd.DataFrame, priv:dict, unpriv:dict) -> float:
+    def accuracy_parity(self, y_pred, test:pd.DataFrame, priv: dict, unpriv: dict) -> float:
         test_set = deepcopy(test)
         test_set['y_pred'] = y_pred
+
+        if unpriv is None:
+            priv_tp, priv_tn, priv_fn, priv_fp = self._confusion_matrix(test_set, priv)
+            acc_priv = (priv_tp + priv_tn) / (priv_tp + priv_tn + priv_fn + priv_fp)
+            return acc_priv
 
         priv_tp, priv_tn, priv_fn, priv_fp = self._confusion_matrix(test_set, priv)
         unpriv_tp, unpriv_tn, unpriv_fn, unpriv_fp = self._confusion_matrix(test_set, unpriv)
@@ -65,20 +74,17 @@ class BinaryFairnessMeasures:
         acc = acc_priv - acc_unpriv
         return acc
 
-    def gmean_parity(self, y_pred, test:pd.DataFrame, priv:dict, unpriv:dict) -> float:
-        test_set = deepcopy(test)
-        test_set['y_pred'] = y_pred
-
-        priv_tp, priv_tn, priv_fn, priv_fp = self._confusion_matrix(test_set, priv)
-        unpriv_tp, unpriv_tn, unpriv_fn, unpriv_fp = self._confusion_matrix(test_set, unpriv)
-        gmean_priv = np.sqrt((priv_tp / (priv_tp + priv_fn)) * (priv_tn / (priv_tn + priv_fp)))
-        gmean_unpriv = np.sqrt((unpriv_tp / (unpriv_tp + unpriv_fn)) * (unpriv_tn / (unpriv_tn + unpriv_fp)))
-        gmean = gmean_priv - gmean_unpriv
-        return gmean
-
     def equal_opportunity(self, y_pred, test: pd.DataFrame, priv: dict, unpriv: dict) -> float:
         test_set = deepcopy(test)
         test_set['y_pred'] = y_pred
+
+        if unpriv is None:
+            priv_tp, priv_tn, priv_fn, priv_fp = self._confusion_matrix(test_set, priv)
+            try:
+                eo_priv = priv_fn / (priv_fn + priv_tp)
+                return eo_priv
+            except ZeroDivisionError:
+                return np.inf
 
         priv_tp, priv_tn, priv_fn, priv_fp = self._confusion_matrix(test_set, priv)
         unpriv_tp, unpriv_tn, unpriv_fn, unpriv_fp = self._confusion_matrix(test_set, unpriv)
@@ -93,6 +99,15 @@ class BinaryFairnessMeasures:
     def average_odds(self, y_pred, test: pd.DataFrame, priv: dict, unpriv: dict) -> float:
         test_set = deepcopy(test)
         test_set['y_pred'] = y_pred
+
+        if unpriv is None:
+            priv_tp, priv_tn, priv_fn, priv_fp = self._confusion_matrix(test_set, priv)
+            try:
+                x1_priv = priv_fp / (priv_fp + priv_tn)
+                x2_priv = priv_tp / (priv_tp + priv_fn)
+                return x1_priv, x2_priv
+            except ZeroDivisionError:
+                return np.inf, np.inf
 
         priv_tp, priv_tn, priv_fn, priv_fp = self._confusion_matrix(test_set, priv)
         unpriv_tp, unpriv_tn, unpriv_fn, unpriv_fp = self._confusion_matrix(test_set, unpriv)
@@ -114,6 +129,15 @@ class BinaryFairnessMeasures:
         test_set = deepcopy(test)
         test_set['y_pred'] = y_pred
 
+        if unpriv is None:
+            priv_tp, priv_tn, priv_fn, priv_fp = self._confusion_matrix(test_set, priv)
+            try:
+                x1_priv = priv_fp / (priv_fp + priv_tn)
+                x2_priv = priv_tp / (priv_tp + priv_fn)
+                return x1_priv, x2_priv
+            except ZeroDivisionError:
+                return np.inf, np.inf
+
         priv_tp, priv_tn, priv_fn, priv_fp = self._confusion_matrix(test_set, priv)
         unpriv_tp, unpriv_tn, unpriv_fn, unpriv_fp = self._confusion_matrix(test_set, unpriv)
         try: 
@@ -134,6 +158,10 @@ class BinaryFairnessMeasures:
         test_set = deepcopy(test)
         test_set['y_pred'] = y_pred
 
+        if unpriv is None:
+            priv_tp, priv_tn, priv_fn, priv_fp = self._confusion_matrix(test_set, priv)
+            di_priv = (priv_tp + priv_fp) / (priv_tp + priv_tn + priv_fn + priv_fp)
+            return di_priv
         priv_tp, priv_tn, priv_fn, priv_fp = self._confusion_matrix(test_set, priv)
         unpriv_tp, unpriv_tn, unpriv_fn, unpriv_fp = self._confusion_matrix(test_set, unpriv)
         di_priv = (priv_tp + priv_fp) / (priv_tp + priv_tn + priv_fn + priv_fp)
@@ -142,6 +170,8 @@ class BinaryFairnessMeasures:
         return di
 
     def adapted_disparate_impact(self, y_pred, test: pd.DataFrame, priv: dict, unpriv: dict):
+        if unpriv is None:
+            return self.disparate_impact(y_pred, test, priv, unpriv)
         di = self.disparate_impact(y_pred, test, priv, unpriv)
         if di > 1.0:
             di = 1 / di
@@ -155,14 +185,13 @@ class BinaryFairnessMeasures:
         aao = self.average_absolute_odds(y_pred, test_set, priv, unpriv)
         di = self.disparate_impact(y_pred, test_set, priv, unpriv)
         adi = self.adapted_disparate_impact(y_pred, test_set, priv, unpriv)
-        gmean = self.gmean_parity(y_pred, test_set, priv, unpriv)
-        return sp, acc, eo, ao, aao, di, adi, gmean
+        return sp, acc, eo, ao, aao, di, adi
 
     def compute_dict(self, y_pred, test_set: pd.DataFrame, priv: dict, unpriv: dict):
         measures = self.calculate_all(y_pred, test_set, priv, unpriv)
         result = {}
         for m, n in zip(measures, ['statistical_parity', 'accuracy', 'equal_opportunity', 'average_odds', 'average_absolute_odds',
-                                   'disparate_impact', 'adapted_disparate_impact', 'gmean']):
+                                   'disparate_impact', 'adapted_disparate_impact']):
             result[n] = m
         return result
 
@@ -179,35 +208,34 @@ class MultiFairnessMeasures:
             'average_absolute_odds': self.binary_measures.average_absolute_odds,
             'disparate_impact': self.binary_measures.disparate_impact,
             'adapted_disparate_impact': self.binary_measures.adapted_disparate_impact,
-            'gmean': self.binary_measures.gmean_parity,
             'all': self.binary_measures.calculate_all,
         }
 
     def compute_measure(self, measure: str, y_pred, test_set: pd.DataFrame, calc_type: str):
-        if calc_type == 'fawos':
-            results = self.compute_fawos(measure, y_pred, test_set)
-        elif calc_type == 'sonoda':
-            results = self.compute_sonoda(measure, y_pred, test_set)
-        else:
-            calc_type = 'default'
-            results = self.compute_default(measure, y_pred, test_set)
-        results_per_attr = self.compute_per_attribute(measure, y_pred, test_set)
-        results_per_group = self.compute_per_group(measure, y_pred, test_set)
+
+        # results_per_attr = self.compute_per_attribute(measure, y_pred, test_set)
+        # results_per_group = self.compute_per_group(measure, y_pred, test_set)
 
         if measure == 'all':
             measures = ['statistical_parity', 'accuracy', 'equal_opportunity', 'average_odds', 'average_absolute_odds',
-                        'disparate_impact', 'adapted_disparate_impact', 'gmean', ]
+                        'disparate_impact']
         else:
             measures = [measure]
         results_dict = {}
         for i, m in enumerate(measures):
-            for r in results:
-                results_dict[f'{m}_{calc_type}'] = r
-            for r, attr in zip(results_per_attr.T[i], self.dataset.sensitive):
-                results_dict[f'{m}_{attr}'] = r
-            for r, attr in zip(results_per_group.T[i],
-                               [*self.dataset.privileged_groups, *self.dataset.unprivileged_groups]):
-                results_dict[f'{m}_{attr}'] = r
+            if calc_type == 'fawos':
+                results = self.compute_fawos(m, y_pred, test_set)
+            elif calc_type == 'sonoda':
+                results = self.compute_sonoda(m, y_pred, test_set)
+            else:
+                calc_type = 'default'
+                results = self.compute_default(m, y_pred, test_set)
+            results_dict[f'{m}'] = results
+            # for r, attr in zip(results_per_attr.T[i], self.dataset.sensitive):
+            #     results_dict[f'{m}_{attr}'] = r
+            # for r, attr in zip(results_per_group.T[i],
+            #                    [*self.dataset.privileged_groups, *self.dataset.unprivileged_groups]):
+            #     results_dict[f'{m}_{attr}'] = r
 
         return results_dict
 
@@ -233,12 +261,22 @@ class MultiFairnessMeasures:
         results = np.array(results)
         return results
 
+    def compute_single_score_group(self, measure: str, y_pred, test_set: pd.DataFrame):
+        results = []
+        for priv in self.dataset.privileged_groups:
+            result = self.measures_dict[measure](y_pred, test_set, priv, None)
+            results.append(result)
+        for unpriv in self.dataset.unprivileged_groups:
+            result = self.measures_dict[measure](y_pred, test_set, unpriv, None)
+            results.append(result)
+        return results
+
     def compute_fawos(self, measure: str, y_pred, test_set: pd.DataFrame):
         results = self.compute_per_attribute(measure, y_pred, test_set)
-        # for priv in self.dataset.privileged_groups:
-        #     for unpriv in self.dataset.unprivileged_groups:
-        #         result = self.measures_dict[measure](y_pred, test_set, priv, unpriv)
-        #         results.append(result)
+        for priv in self.dataset.privileged_groups:
+            for unpriv in self.dataset.unprivileged_groups:
+                result = self.measures_dict[measure](y_pred, test_set, priv, unpriv)
+                results.append(result)
         results = np.array(results)
         return results.mean(axis=0)
 
@@ -249,5 +287,33 @@ class MultiFairnessMeasures:
         return np.abs(max_result - min_result)
 
     def compute_default(self, measure: str, y_pred, test_set: pd.DataFrame):
-        results = self.compute_per_group(measure, y_pred, test_set)
-        return np.mean(results, axis=0)
+        if measure not in ['average_odds', 'average_absolute_odds', 'disparate_impact']:
+            results = np.array(self.compute_single_score_group(measure, y_pred, test_set))
+            if np.inf in results:
+                return np.inf
+            results = np.max(results) - results
+            len_results = len(results) - 1
+            result = np.sum(results) / len_results
+            return result
+        elif measure == 'disparate_impact':
+            results = np.array(self.compute_single_score_group(measure, y_pred, test_set))
+            if np.inf in results:
+                return np.inf
+            results = results / np.max(results)
+            len_results = len(results) - 1
+            result = np.sum(results) / len_results
+            return result
+        else:
+            results = self.compute_single_score_group(measure, y_pred, test_set)
+            if np.inf in results:
+                return np.inf
+            r1 = np.array([r[0] for r in results])
+            r2 = np.array([r[1] for r in results])
+            if np.inf in r1 or np.inf in r2:
+                return np.inf
+            r1 = np.max(r1) - r1
+            r2 = np.max(r2) - r2
+            r1 = np.sum(r1) / (len(r1) - 1)
+            r2 = np.sum(r2) / (len(r2) - 1)
+            return (r1 + r2) * 0.5
+

@@ -3,7 +3,7 @@ adult:
 german:
   k: 11
 heart_disease:
-  k: 11
+  k: 3
 bank:
-  k: 5
+  k: 3
 oversampling_factor: 1.0

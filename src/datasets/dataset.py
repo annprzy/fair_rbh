@@ -175,8 +175,7 @@ class Dataset:
             features_cont_ord = [f for f, v in self.feature_types.items() if
                                  (v == 'continuous' or v == 'ordinal') and f != self.target]
         elif calc_type == 'cont':
-            features_cont_ord = [f for f, v in self.feature_types.items() if
-                                 (v == 'continuous') and f != self.target]
+            features_cont_ord = [f for f, v in self.feature_types.items() if f != self.target]
         else:
             raise ValueError(f"Wrong type for performing encoding {calc_type}")
         features_cat = [f for f, v in self.feature_types.items() if

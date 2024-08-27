@@ -37,17 +37,17 @@ def check_results(dataset_name, algorithm, distance_type, gamma, approach_number
     dataset_train_copy = dataset_train_sample.iloc[train_set].reset_index(drop=True)
 
     exists_fair = False
-    # for model_name in models:
-    #     if os.path.exists(f'{results_path}/{algorithm}_{dataset_name}_{model_name}/{params["dist_type"]}_{params["gamma"]}_{params["approach_number"]}/{date}/fair_{iteration}.csv'):
-    #         fair_data = pd.read_csv(
-    #             f'{results_path}/{algorithm}_{dataset_name}_{model_name}/{params["dist_type"]}_{params["gamma"]}_{params["approach_number"]}/{date}/fair_{iteration}.csv')
-    #         fair_data = fair_data.iloc[:, 1:]
-    #         dataset.set_fair(fair_data)
-    #         exists_fair = True
-    #         break
+    for model_name in models:
+        if os.path.exists(f'{results_path}/{algorithm}_{dataset_name}_{model_name}/{params["dist_type"]}_{params["gamma"]}_{params["approach_number"]}/{date}/fair_{iteration}.csv'):
+            fair_data = pd.read_csv(
+                f'{results_path}/{algorithm}_{dataset_name}_{model_name}/{params["dist_type"]}_{params["gamma"]}_{params["approach_number"]}/{date}/fair_{iteration}.csv')
+            fair_data = fair_data.iloc[:, 1:]
+            dataset.set_fair(fair_data)
+            exists_fair = True
+            break
     if not exists_fair:
-        if algorithm == 'fair_rbo':
-            FairRBO.run(dataset, distance_type=params['dist_type'], approach_number=params['approach_number'], gamma=params['gamma'])
+        if algorithm == 'fair_rbu':
+            FairRBH.run_under(dataset, distance_type=params['dist_type'], approach_number=params['approach_number'], gamma=params['gamma'])
         else:
             FairRBH.run(dataset, distance_type=params['dist_type'], approach_number=params['approach_number'], gamma=params['gamma'])
 
@@ -114,14 +114,14 @@ def check_results(dataset_name, algorithm, distance_type, gamma, approach_number
 
 
 if __name__ == '__main__':
-    datasets = ['german', 'bank', 'adult']
-    gammas = [0.05]
+    datasets = ['german']
+    gammas = [0.03, 0.07, 0.1]
     algorithm = ['fair_rbh']
-    distance_metric = {'fair_rbo': ['hvdm', 'heom'], 'fair_rbh': ['hvdm', 'heom']}
-    distance_num = [0, 1]
-    approach_number = {'fair_rbo': [0, 1, 2, 3, 4], 'fair_rbh': [0, 1, 2, 3, 4]}
+    distance_metric = {'fair_rbu': ['heom'], 'fair_rbh': ['heom']}
+    distance_num = [0]
+    approach_number = {'fair_rbu': [0], 'fair_rbh': [0, 1, 2, 3, 4]}
     iterations = [0, 1, 2, 3, 4]
-    app_ns = [0, 1, 2, 3, 4]
+    app_ns = [4]
     models = ['logistic_regression', 'decision_tree', 'mlp']
     all_options = list(product(datasets, algorithm, distance_num, gammas, app_ns, iterations))
     config_path = '../configs'

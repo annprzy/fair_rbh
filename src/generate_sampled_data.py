@@ -50,8 +50,8 @@ def binary_proportions(dataset: Dataset):
     return natural, group_imbalance, class_imbalance, all_imbalances
 
 
-def sth_sth(dataset):
-    group_imbalance = {'strongly_imbalanced_g': [1, 9], 'mildly_imbalanced_g': [3, 7], 'balanced_g': [1, 1]}
+def multi_imbalance(dataset):
+    group_imbalance = {'strongly_imbalanced_g': [1, 9, 1 ,9], 'mildly_imbalanced_g': [3, 7, 3, 7], 'strongly_mildly_imbalanced_g': [1, 7, 9, 3]}
     groups_sort = {}
     for g in [*dataset.privileged_groups, *dataset.unprivileged_groups]:
         len_group = len(query_dataset(g, dataset.data))
@@ -64,7 +64,6 @@ def sth_sth(dataset):
             key = list(groups_sort.keys())[i]
             order[key] = v
         group_imbalance[g] = order
-
     class_imbalance = {}
     class_imbalance['strongly_imbalanced_c'] = {str(dataset.majority): 9, str(dataset.minority): 1}
     class_imbalance['mildly_imbalanced_c'] = {str(dataset.majority): 6, str(dataset.minority): 4}
@@ -93,25 +92,26 @@ if __name__ == '__main__':
     random_state = 42
     data_path = '../data'
     number_examples = 2000
-    binary_adult_sex = AdultDataset(f'{data_path}/adult_census/adult.data', binary=True, group_type='',
-                                    random_state=random_state)
-    natural, group_imbalance, class_imbalance, all_imbalances = binary_proportions(binary_adult_sex)
+    binary = False
 
-    number_samples_natural = get_number_samples(number_examples, binary_adult_sex, group_class_imbalance=natural)
-    #sample_data(binary_adult_sex, number_samples_natural, save_path=f'{data_path}/adult_census/natural.csv')
+    if binary:
+        binary_adult_sex = AdultDataset(f'{data_path}/adult_census/adult.data', binary=True, group_type='',
+                                        random_state=random_state)
+        natural, group_imbalance, class_imbalance, all_imbalances = binary_proportions(binary_adult_sex)
 
-    # for g, d in group_imbalance.items():
-    #     number_samples = get_number_samples(number_examples, binary_adult_sex, group_imbalance=d)
-    #     sample_data(binary_adult_sex, number_samples, save_path=f'{data_path}/adult_census/sampled_sex/new/{g}.csv')
-    #
-    all_imbalances = sth_sth(binary_adult_sex)
-    print(all_imbalances)
-    # for c, d in class_imbalance.items():
-    #     number_samples = get_number_samples(number_examples, binary_adult_sex, group_class_imbalance=d)
-    #     print(number_samples)
-    #     sample_data(binary_adult_sex, number_samples, save_path=f'{data_path}/adult_census/sampled_sex/new/{c}.csv')
+        number_samples_natural = get_number_samples(number_examples, binary_adult_sex, group_class_imbalance=natural)
+        sample_data(binary_adult_sex, number_samples_natural, save_path=f'{data_path}/adult_census/sampled_sex/natural.csv')
+        for k, d in all_imbalances.items():
+            g, c = d
+            number_samples = get_number_samples(number_examples, binary_adult_sex, class_imbalance=c, group_imbalance=g)
+            sample_data(binary_adult_sex, number_samples, save_path=f'{data_path}/adult_census/sampled_sex/{k}.csv')
+    else:
+        binary_adult_sex = AdultDataset(f'{data_path}/adult_census/adult.data', binary=False, group_type='',
+                                        random_state=random_state)
+        #natural, group_imbalance, class_imbalance, all_imbalances = binary_proportions(binary_adult_sex)
+        all_imbalances = multi_imbalance(binary_adult_sex)
 
-    for k, d in all_imbalances.items():
-        g, c = d
-        number_samples = get_number_samples(number_examples, binary_adult_sex, class_imbalance=c, group_imbalance=g)
-        sample_data(binary_adult_sex, number_samples, save_path=f'{data_path}/adult_census/sampled_sex/new/{k}.csv')
+        for k, d in all_imbalances.items():
+            g, c = d
+            number_samples = get_number_samples(number_examples, binary_adult_sex, class_imbalance=c, group_imbalance=g)
+            sample_data(binary_adult_sex, number_samples, save_path=f'{data_path}/adult_census/sampled_all/{k}.csv')

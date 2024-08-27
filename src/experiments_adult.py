@@ -20,29 +20,40 @@ def experiment_adult(dataset_name: str, algorithm: str, models: list[str], itera
     dataset_name = dataset_name[:-4]
     dataset = AdultSampledDataset(f'{data_path}/{dataset_name}.csv', binary=True, group_type='', random_state=random_seed)
     if kfolds is not None:
-        #if not 'strongly_imbalanced_g_strongly_imbalanced_c' in dataset_name:
-        # kf = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
-        # dataset_train = dataset.data
-        # classes = dataset_train[dataset.target].to_list()
-        # group_class = dataset_train[dataset.sensitive].astype(int).astype(str).agg('-'.join, axis=1).to_list()
-        # group_class = ['_'.join([g, str(int(c))]) for g, c in zip(group_class, classes)]
-        # results = list(kf.split(dataset_train, group_class))[iteration]
-        # train_set, test_set = results
-        # else:
-        kf = RepeatedStratifiedKFold(n_splits=2, n_repeats=5, random_state=42)
-        dataset_train = dataset.data
-        classes = dataset_train[dataset.target].to_list()
-        group_class = dataset_train[dataset.sensitive].astype(int).astype(str).agg('-'.join, axis=1).to_list()
-        group_class = ['_'.join([g, str(int(c))]) for g, c in zip(group_class, classes)]
-        results = list(kf.split(dataset_train, group_class))[iteration]
-        train_set, test_set = results
+        if not 'strongly_imbalanced_g_strongly_imbalanced_c' in dataset_name:
+            kf = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+            dataset_train = dataset.data
+            classes = dataset_train[dataset.target].to_list()
+            group_class = dataset_train[dataset.sensitive].astype(int).astype(str).agg('-'.join, axis=1).to_list()
+            group_class = ['_'.join([g, str(int(c))]) for g, c in zip(group_class, classes)]
+            results = list(kf.split(dataset_train, group_class))[iteration]
+            train_set, test_set = results
+        else:
+            kf = RepeatedStratifiedKFold(n_splits=2, n_repeats=5, random_state=42)
+            dataset_train = dataset.data
+            classes = dataset_train[dataset.target].to_list()
+            group_class = dataset_train[dataset.sensitive].astype(int).astype(str).agg('-'.join, axis=1).to_list()
+            group_class = ['_'.join([g, str(int(c))]) for g, c in zip(group_class, classes)]
+            results = list(kf.split(dataset_train, group_class))[iteration]
+            train_set, test_set = results
         dataset.train = dataset_train.iloc[train_set].reset_index(drop=True)
         dataset.test = dataset_train.iloc[test_set].reset_index(drop=True)
         dataset_train_copy = dataset_train.iloc[train_set].reset_index(drop=True)
     else:
         dataset_train_copy = dataset.data
 
-    dataset = run_oversampling(algorithm, 'adult', dataset, config_path=config_path)
+    exists_fair = False
+    # for model_name in models:
+    #     if os.path.exists(f'{results_path}/{algorithm}_adult_{dataset_name}_{model_name}/{date}/fair_{iteration}.csv'):
+    #         fair_data = pd.read_csv(
+    #             f'{results_path}/{algorithm}_adult_{dataset_name}_{model_name}/{date}/fair_{iteration}.csv')
+    #         fair_data = fair_data.iloc[:, 1:]
+    #         dataset.set_fair(fair_data)
+    #         exists_fair = True
+    #         break
+
+    if not exists_fair:
+        dataset = run_oversampling(algorithm, 'adult', dataset, config_path=config_path)
 
     for model_name in models:
         dataset.train = dataset_train_copy
@@ -96,12 +107,13 @@ if __name__ == "__main__":
     models = ['logistic_regression', 'decision_tree', 'mlp']
     kfolds = 5
     encoding = 'cont_ord_cat'
-    date = 'mean'
+    date = '2024-06-29'
     config_path = '../configs'
     results_path = '../results_adult_bin'
     data_path = '../data'
     folder_path = 'sampled_sex/new'
     dataset_files = [f for f in os.listdir(f'{data_path}/adult_census/{folder_path}') if 'strongly_imbalanced_g_strongly_imbalanced_c' in f]
+    print(dataset_files)
     iterations = [i for i in range(0, kfolds)]
     seeds = [42 for i in iterations]
     all_options = list(product(dataset_files, algorithms, iterations))

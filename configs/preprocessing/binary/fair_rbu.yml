@@ -1,10 +1,10 @@
 adult:
-  gamma: 0.03
+  gamma: 0.07
 german:
   gamma: 0.03
 heart_disease:
   gamma: 0.03
 bank:
-  gamma: 0.1
+  gamma: 0.05
 distance_type: 'heom'
-approach_number: 4
+approach_number: 0

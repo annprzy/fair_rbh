@@ -13,5 +13,5 @@ heart_disease:
   rare_weight: 0.33
 bank:
   safe_weight: 0
-  borderline_weight: 0.5
-  rare_weight: 0.5
+  borderline_weight: 0.6
+  rare_weight: 0.4

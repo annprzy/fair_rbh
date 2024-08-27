@@ -6,11 +6,12 @@ from distython import HVDM, HEOM
 
 from src.datasets.dataset import Dataset
 from src.preprocessing.HFOS.utils import get_clusters
-from src.preprocessing.fair_rbo.oversamplor2 import mutual_class_potential, FairRBO
+from src.preprocessing.fair_rbo.oversamplor2 import mutual_class_potential, FairRBO, distance, rbf
 
 
 def run(dataset: Dataset, gamma=0.05, approach_number=0, distance_type='heom'):
-    rbu = FairRBU(dataset, gamma=gamma, n_nearest_neighbors=50, approach_number=approach_number, distance_type=distance_type)
+    rbu = FairRBU(dataset, gamma=gamma, n_nearest_neighbors=50, approach_number=approach_number,
+                  distance_type=distance_type)
     new_data = rbu.fit_sample()
     dataset.train = new_data
     rbo = FairRBO(dataset, gamma=gamma, step_size=0.001, n_steps=100, approximate_potential=True,
@@ -19,9 +20,15 @@ def run(dataset: Dataset, gamma=0.05, approach_number=0, distance_type='heom'):
     dataset.set_fair(new_data)
 
 
+def run_under(dataset: Dataset, gamma=0.05, approach_number=0, distance_type='heom'):
+    rbu = FairRBU(dataset, gamma=gamma, n_nearest_neighbors=50, approach_number=approach_number,
+                  distance_type=distance_type, type_alg='under')
+    new_data = rbu.fit_sample()
+    dataset.set_fair(new_data)
+
 
 class FairRBU:
-    def __init__(self, dataset: Dataset, gamma=0.05, approximate_potential=True,
+    def __init__(self, dataset: Dataset, gamma=0.05, approximate_potential=True, type_alg='hybrid',
                  n_nearest_neighbors=25, approach_number=0, distance_type='heom'):
         self.gamma = gamma
         self.approximate_potential = approximate_potential
@@ -29,6 +36,7 @@ class FairRBU:
         self.dataset = dataset
         self.approach_number = approach_number
         self.distance_type = distance_type
+        self.type_alg = type_alg
 
     def fit_sample(self):
         cat_ord_features = [f for f, t in self.dataset.feature_types.items() if
@@ -61,6 +69,7 @@ class FairRBU:
 
         order_clusters = np.argsort(len_clusters)
         len_to_achieve = int(np.median(len_clusters))
+        len_to_achieve = int(np.mean(len_clusters))
 
         group_class_m_np = np.array([mapping[g] for g in group_class])
 
@@ -81,45 +90,48 @@ class FairRBU:
 
             n = len(cluster) - len_to_achieve
 
-            if self.approach_number == 0: # representative sample
+            if self.approach_number == 0:  # representative sample
                 samples = []
                 groups_sample = []
                 for i in range(0, e):
                     cluster_e = clusters[order_clusters[i]][1].to_numpy()
                     query_e = clusters[order_clusters[i]][0]
-                    if len(cluster_e) > len_to_achieve//e:
-                        sample = self.dataset.random_state.choice(range(len(cluster_e)), replace=False, size=len_to_achieve//e).flatten()
+                    if len(cluster_e) > len_to_achieve // e:
+                        sample = self.dataset.random_state.choice(range(len(cluster_e)), replace=False,
+                                                                  size=len_to_achieve // e).flatten()
                         sample = cluster_e[sample]
                     else:
                         sample = deepcopy(cluster_e)
                     samples.append(sample)
-                    groups_sample.extend(['_'.join([str(int(query_e[s])) for s in self.dataset.sensitive])] * len(sample))
+                    groups_sample.extend(
+                        ['_'.join([str(int(query_e[s])) for s in self.dataset.sensitive])] * len(sample))
                 samples.append(cluster)
                 groups_sample.extend([current_group] * len(cluster))
                 samples = np.concatenate(samples)
                 groups_sample = np.array(groups_sample)
                 X_sample = samples[:, :-1]
                 y_sample = samples[:, -1]
-            elif self.approach_number == 1: #one-vs-all
+            elif self.approach_number == 1:  #one-vs-all
                 X_sample = X_full
                 y_sample = y_full
                 groups_sample = groups
-            elif self.approach_number == 2: #k nearest neighbors from a given group
+            elif self.approach_number == 2:  #k nearest neighbors from a given group
                 X_sample = X_full
                 y_sample = y_full
                 groups_sample = groups
-            elif self.approach_number == 3: #only subgroups from a given class
+            elif self.approach_number == 3:  #only subgroups from a given class
                 X_sample = X_full[y_full == current_class]
                 y_sample = y_full[y_full == current_class]
                 groups_sample = groups[y_full == current_class]
-            else: #only subgroups from a given group
+            else:  #only subgroups from a given group
                 X_sample = X_full[groups == current_group]
                 y_sample = y_full[groups == current_group]
                 groups_sample = groups[groups == current_group]
 
             considered_points_indices = range(len(y))
 
-            group_class_sample = ['_'.join([groups_sample[i], str(int(y_sample[i]))]) for i in range(len(groups_sample))]
+            group_class_sample = ['_'.join([groups_sample[i], str(int(y_sample[i]))]) for i in
+                                  range(len(groups_sample))]
 
             if n > 0:
                 potentials = []
@@ -133,7 +145,8 @@ class FairRBU:
                             distance_vector = [metric.heom(point, x) for x in X_sample]
                         else:
                             used_metric = metric
-                            distance_vector = [metric.hvdm(np.append(point, current_class), np.append(x, y_x)) for x, y_x in zip(X_sample, y_sample)]
+                            distance_vector = [metric.hvdm(np.append(point, current_class), np.append(x, y_x)) for
+                                               x, y_x in zip(X_sample, y_sample)]
                         indices = np.argsort(distance_vector)[1:(self.n_nearest_neighbors + 1)]
                         # print(self.distance_type, distance_vector)
                         closest_points = X_sample[indices]
@@ -147,7 +160,7 @@ class FairRBU:
                         closest_y = []
                         for j in clusters:
                             query_j, cluster_j, _, _ = j
-                            group_j = '_'.join([str(int(query[s])) for s in self.dataset.sensitive])
+                            group_j = '_'.join([str(int(query_j[s])) for s in self.dataset.sensitive])
                             X_cluster_j = cluster_pd.loc[:, cluster_pd.columns != self.dataset.target].to_numpy()
                             y_cluster_j = cluster_pd[self.dataset.target].to_numpy()
                             # distance_vector = [metric.heom(point, x) for x in X_cluster_j]
@@ -159,7 +172,8 @@ class FairRBU:
                             else:
                                 used_metric = metric
                                 distance_vector = [metric.hvdm(np.append(point, current_class),
-                                                               np.append(x, query[self.dataset.target])) for x in X_cluster_j]
+                                                               np.append(x, query_j[self.dataset.target])) for x in
+                                                   X_cluster_j]
 
                             indices = np.argsort(distance_vector)[1:(num_neighbors_per_subgroup + 1)]
                             closest_points.append(X_cluster_j[indices])
@@ -186,6 +200,6 @@ class FairRBU:
             appended.append(new_data)
 
         new_data_full = np.concatenate(appended)
-        new_data_full = pd.DataFrame(new_data_full, columns=self.dataset.train.columns)
+        new_data_full = pd.DataFrame(new_data_full, columns=[*[f for f in self.dataset.train.columns if f != self.dataset.target], self.dataset.target])
 
         return new_data_full

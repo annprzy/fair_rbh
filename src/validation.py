@@ -62,8 +62,8 @@ def check_results(dataset_name, algorithm, distance_type, gamma, approach_number
     #         exists_fair = True
     #         break
     if not exists_fair:
-        if algorithm == 'fair_rbo':
-            FairRBO.run(dataset, distance_type=params['dist_type'], approach_number=params['approach_number'], gamma=params['gamma'])
+        if algorithm == 'fair_rbu':
+            FairRBH.run_under(dataset, distance_type=params['dist_type'], approach_number=params['approach_number'], gamma=params['gamma'])
         else:
             FairRBH.run(dataset, distance_type=params['dist_type'], approach_number=params['approach_number'], gamma=params['gamma'])
 
@@ -130,13 +130,13 @@ def check_results(dataset_name, algorithm, distance_type, gamma, approach_number
 
 
 if __name__ == '__main__':
-    datasets = ['heart_disease', 'german', 'adult', 'bank']
-    gammas = [0.05]
+    datasets = ['bank', 'adult', 'heart_disease', 'german']
+    gammas = [0.03, 0.07, 0.1]
     algorithm = ['fair_rbh']
-    distance_metric = {'fair_rbo': ['hvdm', 'heom'], 'fair_rbh': ['hvdm', 'heom']}
-    distance_num = [0, 1]
-    app_ns = [0, 1, 2, 3, 4]
-    approach_number = {'fair_rbo': [0, 1, 2, 3, 4], 'fair_rbh': [0, 1, 2, 3, 4]}
+    distance_metric = {'fair_rbu': ['heom'], 'fair_rbh': ['heom']}
+    distance_num = [0]
+    app_ns = [4]
+    approach_number = {'fair_rbu': [0], 'fair_rbh': [0, 1, 2, 3, 4]}
     iterations = [0, 1, 2, 3, 4]
     models = ['logistic_regression', 'decision_tree', 'mlp']
     all_options = list(product(datasets, algorithm, distance_num, gammas, app_ns, iterations))

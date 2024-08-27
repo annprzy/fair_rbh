@@ -48,7 +48,7 @@ class Classifier(ABC):
         X_test, y_test = dataset.features_and_classes("test", encoding=True, enc_type=enc_type)
         y_pred = self.model.predict(X_test)
 
-        performance_scores = BinaryPerformanceMeasures().calculate_metrics(y_test, y_pred)
+        performance_scores = BinaryPerformanceMeasures().calculate_metrics(y_test, y_pred, dataset.minority)
         if fairness_type == "binary":
             fairness_scores = BinaryFairnessMeasures(dataset).compute_dict(y_pred, dataset.test,
                                                                            dataset.privileged_groups[0],

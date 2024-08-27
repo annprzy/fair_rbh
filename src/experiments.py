@@ -64,10 +64,10 @@ def run_oversampling(algorithm: str, dataset_name: str, dataset: Dataset, config
         FAWOS.run(dataset, fawos_cfg[dataset_name]['safe_weight'], fawos_cfg[dataset_name]['borderline_weight'],
                   fawos_cfg[dataset_name]['rare_weight'], oversampling_factor=fawos_cfg['oversampling_factor'],
                   distance_type='heom')
-    if algorithm == 'fair_rbo':
-        with open(f'{config_path}/preprocessing/binary/fair_rbo.yml') as f:
+    if algorithm == 'fair_rbu':
+        with open(f'{config_path}/preprocessing/binary/fair_rbh.yml') as f:
             fairrbo_cfg = yaml.safe_load(f)
-        FairRBO.run(dataset, gamma=fairrbo_cfg[dataset_name]['gamma'], approach_number=fairrbo_cfg['approach_number'], distance_type=fairrbo_cfg['distance_type'])
+        FairRBH.run_under(dataset, gamma=fairrbo_cfg[dataset_name]['gamma'], approach_number=fairrbo_cfg['approach_number'], distance_type=fairrbo_cfg['distance_type'])
     if algorithm == 'fair_rbh':
         with open(f'{config_path}/preprocessing/binary/fair_rbh.yml') as f:
             fairrbo_cfg = yaml.safe_load(f)
@@ -109,13 +109,13 @@ def experiment(dataset_name: str, algorithm: str, models: list[str], iteration: 
     dataset.test = dataset_train.iloc[test_set].reset_index(drop=True)
     dataset_train_copy = dataset_train.iloc[train_set].reset_index(drop=True)
     exists_fair = False
-    for model_name in models:
-        if os.path.exists(f'{results_path}/{algorithm}_{dataset_name}_{model_name}/{date}/fair_{iteration}.csv'):
-            fair_data = pd.read_csv(f'{results_path}/{algorithm}_{dataset_name}_{model_name}/{date}/fair_{iteration}.csv')
-            fair_data = fair_data.iloc[:, 1:]
-            dataset.set_fair(fair_data)
-            #exists_fair = True
-            break
+    # for model_name in models:
+    #     if os.path.exists(f'{results_path}/{algorithm}_{dataset_name}_{model_name}/{date}/fair_{iteration}.csv'):
+    #         fair_data = pd.read_csv(f'{results_path}/{algorithm}_{dataset_name}_{model_name}/{date}/fair_{iteration}.csv')
+    #         fair_data = fair_data.iloc[:, 1:]
+    #         dataset.set_fair(fair_data)
+    #         exists_fair = True
+    #         break
     if not exists_fair:
         dataset = run_oversampling(algorithm, dataset_name, dataset, config_path=config_path)
     for model_name in models:
@@ -168,16 +168,16 @@ def experiment(dataset_name: str, algorithm: str, models: list[str], iteration: 
 
 
 if __name__ == "__main__":
-    datasets = ['heart_disease',]  #, 'adult', 'bank']
-    algorithms = ['fair_rbh']
+    datasets = ['bank']#['german', 'adult']
+    algorithms = ['fawos']
     models = ['logistic_regression', 'decision_tree', 'mlp']
     kfolds = 5
     encoding = 'cont_ord_cat'
-    date = 'mean'
+    date = '2024-08-24'
     config_path = '../configs'
     results_path = '../results'
     data_path = '../data'
-    iterations = [i for i in range(0, 1)]
+    iterations = [i for i in range(0, 5)]
     seeds = [42 for i in iterations]
     all_options = list(product(datasets, algorithms, iterations))
     neptune = False

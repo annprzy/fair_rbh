@@ -9,7 +9,7 @@ from src.preprocessing.HFOS.utils import get_clusters
 
 
 def run(dataset: Dataset, gamma=0.05, approach_number=0, distance_type='heom'):
-    rbo = FairRBO(dataset, gamma=gamma, step_size=0.001, n_steps=100, approximate_potential=True,
+    rbo = FairRBO(dataset, gamma=gamma, step_size=0.002, n_steps=30, approximate_potential=True,
                   n_nearest_neighbors=50, k=5, approach_number=approach_number, distance_type=distance_type)
     new_data = rbo.fit_sample()
     dataset.set_fair(new_data)
@@ -288,7 +288,7 @@ class FairRBO:
                         closest_y = []
                         for j in clusters:
                             query_j, cluster_j, _, _ = j
-                            group_j = '_'.join([str(int(query[s])) for s in self.dataset.sensitive])
+                            group_j = '_'.join([str(int(query_j[s])) for s in self.dataset.sensitive])
                             X_cluster_j = cluster_pd.loc[:, cluster_pd.columns != self.dataset.target].to_numpy()
                             y_cluster_j = cluster_pd[self.dataset.target].to_numpy()
                             # distance_vector = [metric.heom(point, x) for x in X_cluster_j]
@@ -300,7 +300,7 @@ class FairRBO:
                             else:
                                 used_metric = metric
                                 distance_vector = [metric.hvdm(np.append(point, current_class),
-                                                               np.append(x, query[self.dataset.target])) for x in X_cluster_j]
+                                                               np.append(x, query_j[self.dataset.target])) for x in X_cluster_j]
 
                             indices = np.argsort(distance_vector)[1:(num_neighbors_per_subgroup + 1)]
                             closest_points.append(X_cluster_j[indices])
@@ -374,6 +374,6 @@ class FairRBO:
             appended.append(new_data)
 
         new_data_full = np.concatenate(appended)
-        new_data_full = pd.DataFrame(new_data_full, columns=self.dataset.train.columns)
+        new_data_full = pd.DataFrame(new_data_full, columns=[*[f for f in self.dataset.train.columns if f != self.dataset.target], self.dataset.target])
 
         return new_data_full

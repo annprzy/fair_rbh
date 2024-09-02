@@ -69,7 +69,7 @@ class FairRBU:
 
         order_clusters = np.argsort(len_clusters)
         len_to_achieve = int(np.median(len_clusters))
-        len_to_achieve = int(np.mean(len_clusters))
+        #len_to_achieve = int(np.mean(len_clusters))
 
         group_class_m_np = np.array([mapping[g] for g in group_class])
 
